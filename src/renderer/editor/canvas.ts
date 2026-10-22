@@ -831,6 +831,8 @@ export class EditorCanvas {
   private zoom = 1;
   /** Screen-pixel displacement from the centred stage position. */
   private pan = { x: 0, y: 0 };
+  /** Last known pointer position in client coordinates, for F2 shortcut. */
+  private lastPointerPosition: { clientX: number; clientY: number } | null = null;
   /** A hand-pan in progress: a middle-button drag, or a drag with Space held. */
   private viewportPan: { pointerId: number; x: number; y: number } | null = null;
   /** Space is held over the canvas, so the primary button pans; see bindSpacePan. */
@@ -1825,6 +1827,34 @@ export class EditorCanvas {
   }
 
   /** Set zoom around the viewport centre. Exposed for shell actions and tests. */
+
+  /** Convert client (screen) coordinates to slide coordinates.
+   * Returns { x, y } in slide (canvas) pixel space.
+   */
+  pointerToSlide(clientX: number, clientY: number): { x: number; y: number } {
+    const { deck } = this.store.get();
+    const viewport = this.viewportRect();
+    // Stage position relative to viewport
+    const stageLeft = (viewport.width - deck.canvas.w * this.scale) / 2 + this.pan.x;
+    const stageTop = (viewport.height - deck.canvas.h * this.scale) / 2 + this.pan.y;
+    // Pointer relative to viewport
+    const relX = clientX - viewport.left;
+    const relY = clientY - viewport.top;
+    // Pointer relative to stage (slide layer)
+    const slideX = (relX - stageLeft) / this.scale;
+    const slideY = (relY - stageTop) / this.scale;
+    return { x: slideX, y: slideY };
+  }
+
+  /** Get the last known pointer position in slide coordinates, or the slide center if no pointer position is known. */
+  lastPointerToSlide(): { x: number; y: number } {
+    if (this.lastPointerPosition) {
+      return this.pointerToSlide(this.lastPointerPosition.clientX, this.lastPointerPosition.clientY);
+    }
+    // Fallback to slide center if no pointer position tracked
+    const { deck } = this.store.get();
+    return { x: deck.canvas.w / 2, y: deck.canvas.h / 2 };
+  }
   setZoomPercent(percent: number): void {
     this.setZoom(percent / 100);
   }
@@ -2449,6 +2479,7 @@ export class EditorCanvas {
     });
     this.host.addEventListener('pointermove', (ev) => {
       if (this.moveViewportPan(ev)) return;
+      this.lastPointerPosition = { clientX: ev.clientX, clientY: ev.clientY };
       // Covers entering the canvas with Command already held, when this window
       // did not receive the original keydown.
       if (this.drag.kind === 'none') this.setRotationModifier(commandModifier(ev));

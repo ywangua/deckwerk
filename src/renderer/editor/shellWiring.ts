@@ -1,6 +1,7 @@
 import type { Comment, SlideElement } from '@shared/deck.js';
 import { openThreadCount } from '@shared/comments.js';
 import { commentHighlightsShown, setCommentHighlightsShown } from './comments.js';
+import { insertTextAtPointer } from './elementCreation.js';
 import { elementFollowsLayout, layoutGeometryFor, realignElementToLayout } from '@shared/layoutMasters.js';
 import { EditorCanvas } from './canvas.js';
 import { ARRANGE_LABELS, arrangeSelection } from './arrange.js';
@@ -481,6 +482,11 @@ export function bindEditorKeys(deps: ShellDeps, clipboard: ClipboardActions): vo
       case 'n':
         if (!mod) rail.addSlide();
         break;
+      case 'F2': {
+        e.preventDefault();
+        insertTextAtPointer(store, canvas);
+        break;
+      }
     }
   });
 }

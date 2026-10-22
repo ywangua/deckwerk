@@ -882,6 +882,72 @@ export class EditorStore {
   }
 
   /** The current selection, minus ids `deck` no longer has anywhere. */
+
+
+  static readonly SLIDE_NUMBER_CLASS = 'slide-number';
+
+  /** Insert slide numbers on all slides. */
+  insertSlideNumbers(): void {
+    // deck not used in this method
+    this.commit((d) => {
+      for (let i = 0; i < d.slides.length; i++) {
+        const slide = d.slides[i];
+        // Remove existing slide number on this slide first
+        slide.elements = slide.elements.filter((e) => !e.class?.includes(EditorStore.SLIDE_NUMBER_CLASS));
+        // Add new slide number at bottom-right
+        const slideNum = i + 1;
+        slide.elements.push({
+          type: 'text',
+          id: makeId('slide-number'),
+          x: this.state.deck.canvas.w - 120,
+          y: this.state.deck.canvas.h - 60,
+          w: 100,
+          h: 40,
+          rot: 0,
+          z: slide.elements.reduce((max, e) => Math.max(max, e.z), 0) + 1,
+          opacity: 0.7,
+          class: [EditorStore.SLIDE_NUMBER_CLASS, 'role-caption'],
+          style: { textAlign: 'right', color: 'var(--color-muted)', fontSize: '24px' },
+          contentStyle: { fontSize: '24px' },
+          autoFit: false,
+          html: String(slideNum),
+          align: 'right',
+          valign: 'bottom',
+          autoSize: false,
+        });
+      }
+    }, { label: 'Insert slide numbers' });
+  }
+
+  /** Update all slide numbers to match current slide order. */
+  updateSlideNumbers(): void {
+    // deck not used in this method
+    let changed = false;
+    this.commit((d) => {
+      for (let i = 0; i < d.slides.length; i++) {
+        const slide = d.slides[i];
+        for (const el of slide.elements) {
+          if (el.type === 'text' && el.class?.includes(EditorStore.SLIDE_NUMBER_CLASS)) {
+            el.html = String(i + 1);
+            changed = true;
+          }
+        }
+      }
+    }, { label: changed ? 'Update slide numbers' : 'Slide numbers already current' });
+  }
+
+  /** Remove all slide number elements from all slides. */
+  removeSlideNumbers(): void {
+    // deck not used in this method
+    let removed = 0;
+    this.commit((d) => {
+      for (const slide of d.slides) {
+        const before = slide.elements.length;
+        slide.elements = slide.elements.filter((e) => !e.class?.includes(EditorStore.SLIDE_NUMBER_CLASS));
+        removed += before - slide.elements.length;
+      }
+    }, { label: removed > 0 ? `Remove ${removed} slide number${removed > 1 ? 's' : ''}` : 'No slide numbers to remove' });
+  }
   private selectionWithin(deck: Deck): Set<string> {
     const selection = this.state.selection;
     if (selection.size === 0) return selection;

@@ -4,18 +4,20 @@ import { DEFAULT_BRACE_DEPTH } from '@shared/brace.js';
 import { presetPath, type PolygonPreset } from '@shared/polygonShape.js';
 import { applyTableColumnWidths } from '@shared/paragraphs.js';
 import { newObjectColors } from '@shared/themes.js';
+import type { EditorCanvas } from './canvas.js';
 import type { EditorStore } from './store.js';
 
 function nextZ(store: EditorStore): number {
   return (store.slide?.elements.reduce((max, el) => Math.max(max, el.z), 0) ?? 0) + 1;
 }
 
-/** Insert a text box and select it. Exported so creation has direct tests. */
-export function insertText(store: EditorStore): TextEl {
+/** Insert a text box at the given slide coordinates (or default position) and select it. */
+export function insertText(store: EditorStore, x?: number, y?: number): TextEl {
   const { deck } = store.get();
   const created: TextEl = {
     type: 'text', id: makeId('text'),
-    x: Math.round(deck.canvas.w * 0.1), y: Math.round(deck.canvas.h * 0.4),
+    x: x ?? Math.round(deck.canvas.w * 0.1),
+    y: y ?? Math.round(deck.canvas.h * 0.4),
     w: 400, h: 80, rot: 0, z: nextZ(store),
     opacity: 1, class: ['placeholder'], style: {}, html: 'New text', align: 'center', valign: 'top',
     // A box from the toolbar is usually a label — slides already come with a
@@ -26,6 +28,11 @@ export function insertText(store: EditorStore): TextEl {
   store.commit((d) => d.slides[store.get().slideIndex].elements.push(created));
   store.select([created.id]);
   return created;
+}
+/** Insert a text box at the last known pointer position (or slide center if unknown). */
+export function insertTextAtPointer(store: EditorStore, canvas: EditorCanvas): TextEl {
+  const point = canvas.lastPointerToSlide();
+  return insertText(store, point.x, point.y);
 }
 
 /** Insert a native content-height table and select it. */

@@ -536,6 +536,82 @@ function buildToolbar(): void {
     createTableInsertPicker(store),
   );
 
+
+  // Slide numbers picker
+  const slideNumbersPicker = (() => {
+    const wrap = document.createElement('span');
+    wrap.className = 'shape-menu-wrap';
+
+    const trigger = document.createElement('button');
+    trigger.type = 'button';
+    trigger.className = 'shape-menu-trigger';
+    trigger.setAttribute('aria-haspopup', 'menu');
+    trigger.setAttribute('aria-expanded', 'false');
+    trigger.innerHTML =
+      '<svg class="bar-icon" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">' +
+      '<path d="M8 3v10M3 8h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>' +
+      '</svg>' +
+      '<span>Slide #</span>' +
+      '<svg class="shape-menu-chevron" viewBox="0 0 10 10" width="9" height="9" aria-hidden="true">' +
+      '<path d="M2 3.5l3 3 3-3" fill="none" stroke="currentColor" stroke-width="1.5" ' +
+      'stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+    let menu: HTMLDivElement | null = null;
+
+    function close(): void {
+      menu?.remove();
+      menu = null;
+      trigger.setAttribute('aria-expanded', 'false');
+      document.removeEventListener('pointerdown', onOutside, true);
+      document.removeEventListener('keydown', onKey, true);
+    }
+
+    function onOutside(event: PointerEvent): void {
+      if (!wrap.contains(event.target as Node)) close();
+    }
+
+    function onKey(event: KeyboardEvent): void {
+      if (event.key === 'Escape') close();
+    }
+
+    function open(): void {
+      menu = document.createElement('div');
+      menu.className = 'shape-menu';
+      menu.setAttribute('role', 'menu');
+
+      const actions = [
+        { label: 'Insert slide numbers', action: () => store.insertSlideNumbers() },
+        { label: 'Update slide numbers', action: () => store.updateSlideNumbers() },
+        { label: 'Remove slide numbers', action: () => store.removeSlideNumbers() },
+      ];
+
+      for (const { label, action } of actions) {
+        const item = document.createElement('button');
+        item.type = 'button';
+        item.className = 'shape-menu-item';
+        item.setAttribute('role', 'menuitem');
+        item.textContent = label;
+        item.addEventListener('click', () => {
+          close();
+          item.blur();
+          trigger.blur();
+          action();
+        });
+        menu.appendChild(item);
+      }
+      wrap.appendChild(menu);
+      trigger.setAttribute('aria-expanded', 'true');
+      document.addEventListener('pointerdown', onOutside, true);
+      document.addEventListener('keydown', onKey, true);
+      menu.querySelector<HTMLButtonElement>('button')?.focus();
+    }
+
+    trigger.addEventListener('click', () => (menu ? close() : open()));
+    wrap.appendChild(trigger);
+    return wrap;
+  })();
+
+  mid.append(slideNumbersPicker);
   const right = document.createElement('div');
   right.className = 'bar-group bar-right deck-only';
   collaborateButton = barButton('Collaborate', () => void startSharing());
