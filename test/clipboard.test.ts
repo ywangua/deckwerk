@@ -66,7 +66,7 @@ function themeStyle(family: string): ThemeStyle {
   });
   return {
     fonts: {
-      title: role(96), heading: role(64), body: role(44), caption: role(28), base: role(44),
+      title: role(96), heading: role(64), body: role(44), caption: role(28), code: role(28), base: role(44),
     },
     palette: ['#336699'],
     colors: { background: '#ffffff', text: '#111111', muted: '#666666', accent: '#336699' },
@@ -632,4 +632,23 @@ describe('cross-instance copy/paste', () => {
       else delete (navigator as unknown as Record<string, unknown>).clipboard;
     }
   });
+});
+
+
+it('keeps Code source and language when copying a text box between decks', async () => {
+  const deck = sampleDeck();
+  const el = deck.slides[0].elements[0];
+  if (el.type !== 'text') throw new Error('missing text fixture');
+  el.class = ['role-code'];
+  el.codeLanguage = 'javascript';
+  el.html = 'function greet() {\n    return "$x$";\n}';
+  const source = new EditorStore(deck, '/src-deck');
+  source.select(['text-1']);
+  await copySelectionToClipboard(source);
+  const destination = new EditorStore(sampleDeck(), '/dest-deck');
+  await pasteFromClipboard(destination);
+  const pasted = destination.selectedElements()[0];
+  expect(pasted).toMatchObject({ type: 'text', class: ['role-code'],
+    codeLanguage: 'javascript', html: el.html });
+  expect(pasted.id).not.toBe(el.id);
 });

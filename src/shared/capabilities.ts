@@ -54,7 +54,8 @@ export function capabilities(): Capability[] {
       what: 'Text styled by theme class, never by inline font sizes.',
       when: 'Every piece of text. Pick the role; let theme.css size it.',
       notes: [
-        'role-title, role-heading, role-body, role-caption are the vocabulary.',
+        'role-title, role-heading, role-body, role-caption, role-code are the vocabulary.',
+        'role-code uses normal-weight monospace at Caption size. data-code-language selects syntax highlighting: python (default), javascript, c, cpp (C++), csharp (C#), java, matlab, julia, latex, typst or markdown; codeLanguage is the native field. Escape source as HTML and preserve whitespace.',
         'An inline `style` overrides the theme and should be a deliberate one-off.',
         'contentStyle applies CSS to the inner text content rather than the positioned box; use it for glyph paint such as gradient text, text strokes and shadows.',
         'html may contain inline markup: <b>, <i>, <br>, <span>.',

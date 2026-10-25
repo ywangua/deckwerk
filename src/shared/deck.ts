@@ -1,3 +1,5 @@
+import { CODE_LANGUAGES } from './codeLanguages.js';
+import { codeFont, TEXT_ROLES } from './textRoles.js';
 import { z } from 'zod';
 import { renameRetiredFields } from './fieldAliases.js';
 import { normalizeHtmlLineHeights, normalizeStyleLineHeight } from './lineHeight.js';
@@ -29,8 +31,9 @@ export const ThemeStyleSchema = z.object({
     heading: ThemeFontRoleSchema,
     body: ThemeFontRoleSchema,
     caption: ThemeFontRoleSchema,
+    code: ThemeFontRoleSchema.optional(),
     base: ThemeFontRoleSchema,
-  }),
+  }).transform((fonts) => ({ ...fonts, code: fonts.code ?? codeFont(fonts.caption) })),
   palette: z.array(z.string()),
   colors: z.object({
     background: z.string(),
@@ -52,8 +55,8 @@ export const ThemeStyleSchema = z.object({
 const ThemeSelectionSchema = z.object({
   /** Preset id from shared/themes.ts. */
   preset: z.string(),
-  roles: z.array(z.enum(['title', 'heading', 'body', 'caption', 'base']))
-    .default(['title', 'body', 'caption']),
+  roles: z.array(z.enum(TEXT_ROLES))
+    .default(['title', 'body', 'caption', 'code']),
   fontFamily: z.boolean().default(false),
   fontWeight: z.boolean().default(false),
   typeScale: z.boolean().default(false),
@@ -131,6 +134,8 @@ const TextElement = BaseElement.extend({
   type: z.literal('text'),
   /** Inline HTML. Fonts and sizes are expected to come from theme.css. */
   html: z.string().default('').transform(normalizeHtmlLineHeights),
+  /** Syntax language for role-code text; omitted means Python. */
+  codeLanguage: z.enum(CODE_LANGUAGES).optional(),
   /**
    * CSS applied directly to the inner text-content node rather than the
    * positioned element wrapper. This is the escape hatch for glyph paint

@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it } from 'vitest';
+import { CODE_LANGUAGES, CODE_LANGUAGE_LABELS, CODE_LANGUAGE_OPTIONS } from '../src/shared/codeLanguages.js';
 import { emptyDeck, type Deck, type SlideElement } from '../src/shared/deck.js';
 import { defaultLayoutMasters } from '../src/shared/layoutMasters.js';
 import { applySlideLayout } from '../src/renderer/editor/slideLayouts.js';
@@ -1673,7 +1674,7 @@ describe('text formatting from the inspector controls', () => {
     const { store, canvasHost, inspectorHost } = setup([textElement('text-1')]);
     const role = () => field(inspectorHost, 'Role').querySelector('select')!;
     expect([...role().options].map((option) => option.textContent))
-      .toEqual(['Title', 'Body', 'Caption', 'None']);
+      .toEqual(['Title', 'Body', 'Caption', 'Code', 'None']);
     expect(role().value).toBe('');
 
     pick(role(), 'role-title');
@@ -2694,5 +2695,48 @@ describe('bullets and paragraphs after a cut and paste', () => {
     expect(spacing, 'the paragraph-spacing rule for list items').not.toBeNull();
     expect(spacing![1].trim(), 'nested items are excluded from paragraph spacing')
       .toBe(':not(:is(ul, ol) :is(ul, ol) li)');
+  });
+});
+
+
+describe('Code text controls', () => {
+  it('applies Code, changes its language, repaints tokens, and undoes the language change', () => {
+    const { store, canvasHost, inspectorHost } = setup([textElement('text-1', {
+      html: '# comment', align: 'center', style: { 'font-weight': '700' },
+    })]);
+    pick(field(inspectorHost, 'Role').querySelector('select')!, 'role-code');
+    expect(textOf(store, 'text-1')).toMatchObject({ class: ['role-code'], align: 'left',
+      codeLanguage: 'python', style: { 'font-weight': '400' } });
+    expect(contentOf(canvasHost, 'text-1').querySelector('[data-code-token="comment"]')).not.toBeNull();
+    const source = textOf(store, 'text-1').html;
+    pick(field(inspectorHost, 'Language').querySelector('select')!, 'JavaScript');
+    expect(textOf(store, 'text-1').codeLanguage).toBe('javascript');
+    expect(contentOf(canvasHost, 'text-1').querySelector('[data-code-token="comment"]')).toBeNull();
+    expect(textOf(store, 'text-1').html).toBe(source);
+    store.undo();
+    expect(textOf(store, 'text-1').codeLanguage).toBe('python');
+  });
+
+  it('offers every language for a single Code box without rewriting its source', () => {
+    const source = 'value = 42;';
+    const { store, inspectorHost } = setup([textElement('text-1', { class: ['role-code'], html: source })]);
+    for (const language of CODE_LANGUAGES) {
+      pick(field(inspectorHost, 'Language').querySelector('select')!, CODE_LANGUAGE_LABELS[language]);
+      expect(textOf(store, 'text-1')).toMatchObject({ codeLanguage: language, html: source });
+      expect(field(inspectorHost, 'Language').querySelector('select')!.value).toBe(CODE_LANGUAGE_LABELS[language]);
+    }
+  });
+
+  it('supports changing the role and language for multiple code boxes', () => {
+    const { store, inspectorHost } = setup([textElement('a'), textElement('b')]);
+    pick(field(inspectorHost, 'Role').querySelector('select')!, 'role-code');
+    expect([...field(inspectorHost, 'Language').querySelector('select')!.options]
+      .filter((option) => option.value).map((option) => option.textContent)).toEqual(CODE_LANGUAGE_OPTIONS);
+    for (const language of CODE_LANGUAGES) {
+      pick(field(inspectorHost, 'Language').querySelector('select')!, CODE_LANGUAGE_LABELS[language]);
+      for (const id of ['a', 'b']) expect(textOf(store, id)).toMatchObject({
+        class: ['role-code'], codeLanguage: language, align: 'left',
+      });
+    }
   });
 });

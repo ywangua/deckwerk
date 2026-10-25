@@ -52,7 +52,7 @@ describe('theme panel', () => {
     const labels = [...panel.element.querySelectorAll<HTMLElement>('.theme-adoption-controls .field-check > span')]
       .map((label) => label.firstChild?.textContent);
     expect(labels).toEqual([
-      'Title', 'Body', 'Caption',
+      'Title', 'Body', 'Caption', 'Code',
       'Typography', 'Type scale', 'Colour', 'Detect roles for untagged text',
     ]);
     expect(labels).not.toContain('Heading');
@@ -432,7 +432,7 @@ describe('the theme editor’s type scale', () => {
 
     const sizes = [...panel.element.querySelectorAll<HTMLElement>('.theme-role-size')];
     expect(sizes.map((node) => node.querySelector('span')?.textContent)).toEqual([
-      'Title size', 'Body size', 'Caption size',
+      'Title size', 'Body size', 'Caption size', 'Code size',
     ]);
     const title = sizes[0].querySelector('input')!;
     const before = THEMES[0].fonts.title.size;
@@ -477,7 +477,7 @@ describe('the theme editor’s type scale', () => {
 
     const spacings = [...panel.element.querySelectorAll<HTMLElement>('.theme-role-line-spacing')];
     expect(spacings.map((node) => node.querySelector('span')?.textContent)).toEqual([
-      'Title line spacing', 'Body line spacing', 'Caption line spacing',
+      'Title line spacing', 'Body line spacing', 'Caption line spacing', 'Code line spacing',
     ]);
     // Each sits right after its role's size.
     expect(spacings[0].previousElementSibling?.classList.contains('theme-role-size')).toBe(true);

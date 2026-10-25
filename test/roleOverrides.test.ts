@@ -232,14 +232,14 @@ describe('the Role control and Follow theme in the Props panel', () => {
     expect(noRole.host.querySelector<HTMLButtonElement>('.follow-theme-button')!.disabled).toBe(true);
   });
 
-  it('offers only Title, Body and Caption, but still shows a legacy heading or base tag', () => {
+  it('offers Title, Body, Caption and Code, but still shows a legacy heading or base tag', () => {
     const { roleSelect } = panelFor(body('b'));
     expect([...roleSelect().options].map((option) => option.textContent))
-      .toEqual(['Title', 'Body', 'Caption', 'None']);
+      .toEqual(['Title', 'Body', 'Caption', 'Code', 'None']);
     document.body.replaceChildren();
     const legacy = panelFor({ ...body('h'), class: ['role-heading'] }).roleSelect();
     expect([...legacy.options].map((option) => option.textContent))
-      .toEqual(['Title', 'Body', 'Caption', 'Heading', 'None']);
+      .toEqual(['Title', 'Body', 'Caption', 'Code', 'Heading', 'None']);
     expect(legacy.value).toBe('role-heading');
   });
 });

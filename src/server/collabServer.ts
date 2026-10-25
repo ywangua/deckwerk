@@ -4091,7 +4091,7 @@ function inspectNativeSlide(deck: Deck, slide: Slide): Record<string, unknown> {
     id: slide.id,
     properties,
     elements: slide.elements.map((element) => {
-      const explicit = element.class.find((name) => /^role-(title|heading|body|caption)$/.test(name));
+      const explicit = element.class.find((name) => /^role-(title|heading|body|caption|code)$/.test(name));
       const role = explicit?.slice('role-'.length)
         ?? (element.type === 'text' && element.id === inferredTitle ? 'title' : element.type === 'text' ? 'body' : null);
       const roleStyle = role && deck.themeStyle

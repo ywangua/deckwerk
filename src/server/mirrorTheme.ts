@@ -112,7 +112,7 @@ export function mirrorThemeAction(deck: Deck, currentCss: string, request: Mirro
   }
   adoptThemeStyles(next, theme, {
     scope,
-    roles: ['title', 'heading', 'body', 'caption', 'base'],
+    roles: ['title', 'heading', 'body', 'caption', 'code', 'base'],
     fontFamily: true,
     fontWeight: true,
     typeScale: true,

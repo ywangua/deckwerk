@@ -171,7 +171,7 @@ Everything else:
                                           slides are born wearing
   theme     apply  [deck] --id <themeId> [--scope deck|slides]
             [--slide id|number|--all]
-            [--roles title,heading,body,caption,base]
+            [--roles title,heading,body,caption,code,base]
             [--properties fonts,weights,scale,text-color,background,object-colors]
             [--keep-overrides] [--detect-roles]
                                           restyle slides that already exist;
@@ -2090,7 +2090,7 @@ async function themeApplyCommand(argv: string[], io: CliIo): Promise<number> {
   resolveRequestedSlides(flags, deck);
   const theme = resolveTheme(deck, id);
 
-  const roles = parseList(options.get('roles'), ['title', 'heading', 'body', 'caption', 'base'],
+  const roles = parseList(options.get('roles'), ['title', 'heading', 'body', 'caption', 'code', 'base'],
     'roles') as ThemeTextRole[];
   const chosen = parseList(options.get('properties'), Object.keys(THEME_PROPERTIES), 'properties');
   const properties = Object.fromEntries(Object.entries(THEME_PROPERTIES)
@@ -2199,7 +2199,7 @@ function themeApplyWarnings(before: Deck, after: Deck, detectedRoles: boolean): 
   if (tagged.length > 1 && tagged.every((role) => role === 'role-base')) {
     return [`Role detection tagged all ${tagged.length} text elements as role-base: it reads the `
       + 'inline font-size, and these have none (their sizes come from the stylesheet). Tag the '
-      + 'roles yourself — add role-title/role-heading/role-body/role-caption classes — and apply again.'];
+      + 'roles yourself — add role-title/role-heading/role-body/role-caption/role-code classes — and apply again.'];
   }
   return [];
 }

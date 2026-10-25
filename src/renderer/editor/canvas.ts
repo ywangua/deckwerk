@@ -1,3 +1,4 @@
+import { clearLiveCodeHighlight, highlightLiveCode } from '../../shared/codeHighlight.js';
 import { openContextMenu } from './contextMenuPlacement.js';
 import type { Deck, Slide, SlideElement, TextEl } from '@shared/deck.js';
 import { NEW_MEDIA_FIT } from '@shared/deck.js';
@@ -1579,7 +1580,9 @@ export class EditorCanvas {
         continue;
       }
       const prev = before.get(el.id);
-      if (!prev || !('html' in prev) || prev.html === el.html) continue;
+      if (!prev || !('html' in prev) || (prev.html === el.html && prev.type === el.type
+        && (el.type !== 'text' || (prev.type === 'text' && prev.codeLanguage === el.codeLanguage
+          && prev.class.includes('role-code') === el.class.includes('role-code'))))) continue;
       const node = this.slideLayer.querySelector<HTMLElement>(
         `[data-element-id="${CSS.escape(el.id)}"]`,
       );
@@ -3735,6 +3738,7 @@ export class EditorCanvas {
     // jsdom has no execCommand; the editing command is a browser-only nicety.
     document.execCommand?.('defaultParagraphSeparator', false, 'p');
     body.contentEditable = 'true';
+    if (el.type === 'text' && el.class.includes('role-code')) highlightLiveCode(body, el.codeLanguage);
     // Harper (this.spelling) checks the box; Chromium's own squiggles would
     // double up on top of it.
     body.spellcheck = false;
@@ -3774,7 +3778,7 @@ export class EditorCanvas {
     this.textEditDomBase = authoredTextHtml(body);
     this.textEditRevertHtml = el.html;
     this.onTextEditModeChange?.(elementId);
-    this.spelling.attach(body);
+    if (!el.class.includes('role-code')) this.spelling.attach(body);
 
     // Live sync: stream the box's content to the store (and thus to
     // collaborators) while typing, throttled to one commit per interval. The
@@ -4234,6 +4238,7 @@ export class EditorCanvas {
     };
 
     const finish = (commit: boolean) => {
+      clearLiveCodeHighlight();
       ended = true;
       this.textEditComposing = false;
       this.spelling.detach();
@@ -4430,6 +4435,7 @@ export class EditorCanvas {
       }
       if (
         typed?.inputType === 'insertText'
+        && !el.class.includes('role-code')
         && typed.data === '>'
         && !typed.isComposing
       ) {
@@ -4437,6 +4443,7 @@ export class EditorCanvas {
       }
       if (
         typed?.inputType === 'insertText'
+        && !el.class.includes('role-code')
         && /^[\s\u00a0]+$/.test(typed.data ?? '')
         && !typed.isComposing
       ) {
@@ -4460,6 +4467,8 @@ export class EditorCanvas {
         || (inputType === 'insertText' && /^[\s\u00a0]+$/.test(typed?.data ?? ''));
       if (endsRun) sealTextChunk();
       else scheduleIdleSeal();
+      const code = findTextTarget(this.store.get().deck, elementId);
+      if (code?.type === 'text' && code.class.includes('role-code')) highlightLiveCode(body, code.codeLanguage);
     };
     const sealActiveTypingStyle = () => {
       const range = this.activeTextRange(body);
@@ -4522,7 +4531,7 @@ export class EditorCanvas {
         || event.data === null
         || event.isComposing
       ) return;
-      if (event.data === ' ') {
+      if (event.data === ' ' && !el.class.includes('role-code')) {
         // The space after a typed `-`, `*` or `1.` at the start of a line is
         // the moment it becomes a bullet — not the Return at the end of it.
         const typedMarker = typedListMarkerAtCaret(body, window.getSelection(), 'space');
@@ -4576,7 +4585,12 @@ export class EditorCanvas {
       // the paragraph or the list item below. The caret is left where it was,
       // outside the new link, so the split still happens where it was asked
       // for.
-      if (e.key === 'Enter' && !e.isComposing) linkifyTypedUrl();
+      if (e.key === 'Enter' && !e.isComposing && !el.class.includes('role-code')) linkifyTypedUrl();
+      if (e.key === 'Tab' && el.class.includes('role-code') && !e.metaKey && !e.ctrlKey && !e.shiftKey) {
+        e.preventDefault();
+        document.execCommand('insertText', false, '    ');
+        return;
+      }
       // Shift keeps these clear of the browser's own Cmd/Ctrl +/- zoom, and
       // the shifted characters are matched alongside the unshifted ones
       // because a US layout reports "+"/"_" while others report "="/"-".
@@ -4648,7 +4662,8 @@ export class EditorCanvas {
           // absorb it, and one Ctrl/Cmd+Z would take back both.
           this.commitLiveTextDom('Edit list');
         } else {
-          const typedMarker = typedListMarkerAtCaret(body, window.getSelection(), 'return');
+          const typedMarker = el.class.includes('role-code') ? null
+            : typedListMarkerAtCaret(body, window.getSelection(), 'return');
           if (typedMarker) {
             e.preventDefault();
             // The new item continues with the formats in force at the caret,
@@ -5395,6 +5410,7 @@ export class EditorCanvas {
 
   /** Write the edited markup back to the deck as a single undoable change. */
   private commitTextEdit(): void {
+    clearLiveCodeHighlight();
     const elementId = this.editingId;
     if (!elementId) return;
     // New typed content leaving with the session must not fold into a

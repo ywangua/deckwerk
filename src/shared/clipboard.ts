@@ -231,7 +231,7 @@ export function remapSlideIds(slide: Slide): void {
 type ThemeTextRole = keyof ThemeStyle['fonts'];
 
 function textRole(element: SlideElement): ThemeTextRole {
-  const role = element.class.find((name) => /^role-(title|heading|body|caption|base)$/.test(name));
+  const role = element.class.find((name) => /^role-(title|heading|body|caption|code|base)$/.test(name));
   return (role?.slice(5) as ThemeTextRole | undefined) ?? 'base';
 }
 
@@ -251,7 +251,7 @@ export function matchSlidesToTheme(slides: Slide[], source: ThemeStyle): void {
   for (const slide of slides) {
     for (const element of slide.elements) {
       if (element.type !== 'text') continue;
-      if (!element.class.some((name) => /^role-(title|heading|body|caption)$/.test(name))) continue;
+      if (!element.class.some((name) => /^role-(title|heading|body|caption|code)$/.test(name))) continue;
       const font = source.fonts[textRole(element)];
       const themeColors = [font.color, source.colors.text, source.colors.muted]
         .filter((color): color is string => typeof color === 'string')

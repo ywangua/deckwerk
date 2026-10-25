@@ -76,6 +76,14 @@ const DEFAULT_THEME = `/* Fonts, sizes and colours live here. The editor never r
   line-height: 1.3;
 }
 
+.role-code {
+  font-family: "SF Mono", "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+  font-size: 30px;
+  font-weight: 400;
+  line-height: 1.3;
+  text-align: left;
+}
+
 .role-caption, .caption {
   font-size: 30px;
   color: #666666;

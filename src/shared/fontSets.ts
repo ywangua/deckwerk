@@ -1,14 +1,15 @@
+import { codeFont, TEXT_ROLE_CLASS, type TextRole } from './textRoles.js';
 /**
  * Named typographic scales.
  *
  * An imported deck carries a per-element inline `font-size` (and often a
  * colour) taken from Keynote, which is why an import looks approximately right
  * but never *consistent*. Applying a font set rewrites those ad-hoc values into
- * five semantic roles and moves the actual type into `theme.css`, so the deck
+ * semantic roles and moves the actual type into `theme.css`, so the deck
  * becomes editable as a design rather than as hundreds of individual numbers.
  *
  * Roles, largest to smallest: `title`, `heading`, `body`, `caption`, and
- * `base` as the catch-all.
+ * `base` as the catch-all. `code` uses monospace at caption size and is chosen explicitly.
  */
 
 export interface FontRole {
@@ -24,7 +25,7 @@ export interface FontSet {
   id: string;
   name: string;
   description: string;
-  roles: Record<'title' | 'heading' | 'body' | 'caption' | 'base', FontRole>;
+  roles: Record<TextRole, FontRole>;
 }
 
 /**
@@ -46,6 +47,7 @@ export const FONT_SETS: FontSet[] = [
       heading: { family: SANS, size: 64, weight: 600, lineHeight: 1.1, letterSpacing: '-0.02em' },
       body: { family: SANS, size: 46, weight: 400, lineHeight: 1.3, letterSpacing: '0' },
       caption: { family: SANS, size: 30, weight: 400, lineHeight: 1.3, letterSpacing: '0', color: '#6b7280' },
+      code: codeFont({ size: 30, lineHeight: 1.3 }),
       base: { family: SANS, size: 42, weight: 400, lineHeight: 1.3, letterSpacing: '0' },
     },
   },
@@ -58,6 +60,7 @@ export const FONT_SETS: FontSet[] = [
       heading: { family: SANS, size: 80, weight: 700, lineHeight: 1.05, letterSpacing: '-0.03em' },
       body: { family: SANS, size: 48, weight: 500, lineHeight: 1.25, letterSpacing: '-0.01em' },
       caption: { family: SANS, size: 32, weight: 500, lineHeight: 1.25, letterSpacing: '0', color: '#9ca3af' },
+      code: codeFont({ size: 32, lineHeight: 1.25 }),
       base: { family: SANS, size: 44, weight: 500, lineHeight: 1.25, letterSpacing: '-0.01em' },
     },
   },
@@ -70,6 +73,7 @@ export const FONT_SETS: FontSet[] = [
       heading: { family: SERIF, size: 56, weight: 600, lineHeight: 1.15, letterSpacing: '0' },
       body: { family: SANS, size: 46, weight: 400, lineHeight: 1.34, letterSpacing: '0' },
       caption: { family: SANS, size: 30, weight: 400, lineHeight: 1.3, letterSpacing: '0', color: '#6b7280' },
+      code: codeFont({ size: 30, lineHeight: 1.3 }),
       base: { family: SANS, size: 42, weight: 400, lineHeight: 1.34, letterSpacing: '0' },
     },
   },
@@ -82,6 +86,7 @@ export const FONT_SETS: FontSet[] = [
       heading: { family: SANS, size: 52, weight: 600, lineHeight: 1.15, letterSpacing: '-0.01em' },
       body: { family: SANS, size: 44, weight: 400, lineHeight: 1.34, letterSpacing: '0' },
       caption: { family: MONO, size: 28, weight: 400, lineHeight: 1.3, letterSpacing: '0', color: '#4b5563' },
+      code: codeFont({ size: 28, lineHeight: 1.3 }),
       base: { family: MONO, size: 38, weight: 400, lineHeight: 1.34, letterSpacing: '0' },
     },
   },
@@ -137,7 +142,7 @@ export function roleForElement(
   maxProse: number,
 ): RoleName {
   for (const cls of classes) {
-    const m = /^role-(title|heading|body|caption|base)$/.exec(cls);
+    const m = TEXT_ROLE_CLASS.exec(cls);
     if (m) return m[1] as RoleName;
   }
   return roleForSize(size || maxProse * 0.5, maxProse);
@@ -172,6 +177,8 @@ export function fontSetCss(set: FontSet): string {
     rule('.role-body', set.roles.body),
     ``,
     rule('.role-caption', set.roles.caption),
+    ``,
+    rule('.role-code', set.roles.code),
     ``,
   ].join('\n');
 }

@@ -269,3 +269,29 @@
    them. The :not() above leaves every nested item — in the saved
    `li > ul > li` shape and in the `ul > ul > li` shape Chromium's indent
    writes while editing — to the reset, which zeroes it. */
+
+/* Source stays ordinary text. Syntax colors are derived at render time. */
+.role-code {
+  font-family: "SF Mono", "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+  font-size: 30px;
+  font-weight: 400;
+  line-height: 1.3;
+  letter-spacing: 0;
+  text-align: left;
+  tab-size: 4;
+}
+.role-code :is(pre, code) { font: inherit; margin: 0; white-space: pre-wrap; }
+.role-code [data-code-token="keyword"] { color: var(--code-keyword, #7c3aed); }
+.role-code [data-code-token="string"] { color: var(--code-string, #166534); }
+.role-code [data-code-token="number"] { color: var(--code-number, #9a3412); }
+.role-code [data-code-token="comment"] { color: var(--code-comment, #64748b); }
+.role-code [data-code-token="function"] { color: var(--code-function, #1d4ed8); }
+.role-code [data-code-token="type"] { color: var(--code-type, #0e7490); }
+.role-code [data-code-token="operator"] { color: var(--code-operator, #9f1239); }
+::highlight(code-keyword) { color: var(--code-keyword, #7c3aed); }
+::highlight(code-string) { color: var(--code-string, #166534); }
+::highlight(code-number) { color: var(--code-number, #9a3412); }
+::highlight(code-comment) { color: var(--code-comment, #64748b); }
+::highlight(code-function) { color: var(--code-function, #1d4ed8); }
+::highlight(code-type) { color: var(--code-type, #0e7490); }
+::highlight(code-operator) { color: var(--code-operator, #9f1239); }

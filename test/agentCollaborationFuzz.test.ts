@@ -1,3 +1,4 @@
+import { CODE_LANGUAGES, type CodeLanguage } from '../src/shared/codeLanguages.js';
 import { afterEach, describe, expect, it } from 'vitest';
 import { existsSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
@@ -141,7 +142,7 @@ class Walk {
         + (this.chance(0.3) ? ` data-build-effect="${this.pick(['dissolve', 'blur'])}"` : '')
       : '');
     const parts: string[] = [];
-    const kind = this.pick(['title', 'prose', 'list', 'flex', 'layout', 'maths']);
+    const kind = this.pick(['title', 'prose', 'list', 'flex', 'layout', 'maths', 'code']);
     if (kind === 'layout') {
       const title = say();
       const body = this.chance(0.5)
@@ -155,6 +156,24 @@ class Walk {
     parts.push(`<h1 class="role-title"${build()}>${say()}</h1>`);
     if (kind === 'prose') parts.push(`<p class="role-body"${build()}>${say()} with <b>${this.pick(WORDS)}</b> and <i>${this.pick(WORDS)}</i></p>`);
     if (kind === 'list') parts.push(`<ul class="role-body"${build()}><li>${say()}</li><li>${say()}</li><li>${say()}</li></ul>`);
+    if (kind === 'code') {
+      const language = this.pick(CODE_LANGUAGES);
+      const phrase = say();
+      const examples: Record<CodeLanguage, string> = {
+        python: `def example():\n    return "${phrase}"`,
+        javascript: `function example() {\n    return "${phrase}";\n}`,
+        c: `char *example(void) { return "${phrase}"; }`,
+        cpp: `auto example() { return "${phrase}"; }`,
+        csharp: `class Example { public string Value() { return "${phrase}"; } }`,
+        java: `class Example { public String value() { return "${phrase}"; } }`,
+        matlab: `function value = example()\n    value = "${phrase}";\nend`,
+        julia: `function example()\n    return "${phrase}"\nend`,
+        latex: `\\section{${phrase}}\n$x^2$`,
+        typst: `= ${phrase}\n#let value = 42`,
+        markdown: `# ${phrase}\n**Strong** and ` + "`code`",
+      };
+      parts.push(`<pre class="role-code" data-code-language="${language}"${build()}>${examples[language]}</pre>`);
+    }
     if (kind === 'maths') {
       // TeX the player renders, and a dollar sign meant literally.
       parts.push(`<p class="role-body"${build()}>${say()} costs \\$5 and $E = mc^2$ holds</p>`);

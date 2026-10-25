@@ -1,3 +1,4 @@
+import { CODE_LANGUAGES, type CodeLanguage } from '../src/shared/codeLanguages.js';
 import { afterEach, describe, expect, it } from 'vitest';
 import { existsSync } from 'node:fs';
 import { appendFile, readFile, writeFile } from 'node:fs/promises';
@@ -125,6 +126,48 @@ const withSections = (page: string, blocks: string[]): string =>
   page.replace(/<body>[\s\S]*<\/body>/, `<body>\n${blocks.join('\n')}\n</body>`);
 
 for (const kind of BACKENDS) describe.skipIf(!electronBinary)(`an agent working ${kind}`, { timeout: 240_000 }, () => {
+  it('keeps Code source and language through export, untouched save and language edits', async () => {
+    const workspace = await open(kind);
+    const python = 'def greet(name):\n    # keep indentation\n    return "$x$"  \n';
+    const examples: Record<CodeLanguage, string> = {
+      python,
+      javascript: 'function greet(name) {\n    return "$x$";\n}',
+      c: 'int greet(void) {\n    return 42; // $x$\n}',
+      cpp: 'auto greet() {\n    return 42; // $x$\n}',
+      csharp: 'class Example { public string Greet() { return "$x$"; } }',
+      java: 'class Example { public String greet() { return "$x$"; } }',
+      matlab: 'function value = greet()\n    value = 42; % $x$\nend',
+      julia: 'function greet()\n    return "$x$"\nend',
+      latex: String.raw`\section{Greeting}
+% keep TeX as source
+$E = mc^2$`,
+      typst: '= Greeting\n#let value = 42\n$ x^2 $',
+      markdown: '# Greeting\n**Strong** and `code`\n[Link](https://example.com)  \n',
+    };
+    await workspace.write('code.html', await newPage(workspace,
+      ...CODE_LANGUAGES.map((language) => `<pre class="role-code" data-code-language="${language}">${examples[language]}</pre>`)));
+    const added = landed(await apply(workspace, 'code.html'), workspace);
+    expect(added.changes.inserted).toHaveLength(CODE_LANGUAGES.length);
+    const ids = added.changes.inserted;
+    const before = await workspace.deck();
+    const elements = ids.map((id) => slideById(before, id).elements[0]);
+    for (const [index, language] of CODE_LANGUAGES.entries()) {
+      expect(elements[index]).toMatchObject({ type: 'text', codeLanguage: language,
+        class: ['role-code'], html: examples[language] });
+    }
+    const page = await exportPage(workspace, ids.join(','));
+    expect(page).toContain('data-code-token="keyword"');
+    await workspace.write('code-roundtrip.html', page);
+    const untouched = landed(await apply(workspace, 'code-roundtrip.html'), workspace);
+    expect(untouched.applied).toBe(false);
+    for (const id of ids) expect(slideById(await workspace.deck(), id)).toEqual(slideById(before, id));
+    const stamped = await workspace.read('code-roundtrip.html');
+    await workspace.write('code-roundtrip.html', stamped.replace('data-code-language="python"', 'data-code-language="javascript"'));
+    const changed = landed(await apply(workspace, 'code-roundtrip.html'), workspace);
+    expect(changed.changes.deleted).toEqual([]);
+    expect(slideById(await workspace.deck(), ids[0]).elements[0]).toMatchObject({ codeLanguage: 'javascript', html: python });
+  });
+
   it('adds slides from a new page, stamps their ids, and saving the page again adds nothing', async () => {
     const workspace = await open(kind);
     const before = await workspace.deck();

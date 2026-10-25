@@ -1,3 +1,4 @@
+import { clearLiveCodeHighlight, highlightedCodeHtml, highlightLiveCode } from '../../shared/codeHighlight.js';
 import { curvedShadowClasses } from '@shared/shapeShadow.js';
 import { MIRRORED_TEXT_STYLE_PROPERTIES } from '@shared/deck.js';
 import type { Deck, MediaEffect, Slide, SlideElement } from '@shared/deck.js';
@@ -336,6 +337,9 @@ export function applyTextRenderState(
 ): void {
   if (el.type !== 'text') return;
 
+  if (el.codeLanguage) node.dataset.codeLanguage = el.codeLanguage;
+  else delete node.dataset.codeLanguage;
+
   if (el.table) node.dataset.table = 'true';
   else delete node.dataset.table;
 
@@ -388,6 +392,10 @@ export function applyTextRenderState(
     }
     for (const [property, value] of Object.entries(el.contentStyle ?? {})) {
       content.style.setProperty(property, value);
+    }
+    if (content.contentEditable === 'true') {
+      if (el.class.includes('role-code')) highlightLiveCode(content, el.codeLanguage);
+      else clearLiveCodeHighlight();
     }
     if (el.table) {
       const table = content.querySelector<HTMLTableElement>(':scope > table');
@@ -685,6 +693,11 @@ function renderBody(el: SlideElement, opts: RenderOptions): HTMLElement | SVGEle
       // becomes its own flex item and is forced onto a separate line.
       const content = document.createElement('div');
       content.className = 'text-content';
+      if (el.class.includes('role-code')) {
+        content.innerHTML = highlightedCodeHtml(el.html, el.codeLanguage);
+        div.appendChild(content);
+        return div;
+      }
       // KaTeX auto-render does not exclude escaped delimiter characters before
       // pairing `$...$`. Protect literal dollars, render, then restore them.
       const escapedDollar = '\uE000';

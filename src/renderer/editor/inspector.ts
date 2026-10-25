@@ -1,3 +1,4 @@
+import { CODE_LANGUAGE_LABELS, CODE_LANGUAGE_OPTIONS, codeLanguageFromLabel } from '@shared/codeLanguages.js';
 import type { Deck, MediaEffect, Slide, SlideElement } from '@shared/deck.js';
 import { braceDepthOf } from '@shared/brace.js';
 import {
@@ -24,6 +25,7 @@ import { fontFamilyField, primaryFamily } from './fontPicker.js';
 import {
   deckTheme,
   deckThemes,
+  effectiveThemeStyle,
   followThemeOnText,
   hasOwnTextType,
   newObjectColors,
@@ -384,7 +386,7 @@ export class Inspector {
     const deck = this.store.get().deck;
     const fonts = deck.themeStyle?.fonts ?? themeById(deck.themePreset, deckThemes(deck))?.fonts;
     if (!fonts) return [];
-    const roles = [fonts.title, fonts.heading, fonts.body, fonts.caption, fonts.base];
+    const roles = [fonts.title, fonts.heading, fonts.body, fonts.caption, fonts.code, fonts.base];
     return [...new Set(roles.map((role) => primaryFamily(role.family)).filter(Boolean))];
   }
 
@@ -1403,7 +1405,7 @@ export class Inspector {
   ): HTMLElement {
     const wrap = group('Text');
     const roles = texts.map((text) =>
-      text.class.find((name) => /^role-(title|heading|body|caption|base)$/.test(name)) ?? 'none');
+      text.class.find((name) => /^role-(title|heading|body|caption|code|base)$/.test(name)) ?? 'none');
     wrap.appendChild(mixedSelectField(
       'Role', ['none', ...ROLE_ORDER.map((role) => `role-${role}`)],
       commonValue(roles),
@@ -1416,6 +1418,18 @@ export class Inspector {
         }, { label: role ? `Set role to ${role}` : 'Clear role' });
       },
     ));
+
+    if (texts.every((text) => text.class.includes('role-code'))) {
+      wrap.appendChild(mixedSelectField(
+        'Language', CODE_LANGUAGE_OPTIONS,
+        commonValue(texts.map((text) => CODE_LANGUAGE_LABELS[text.codeLanguage ?? 'python'])),
+        (value) => this.store.updateSelected((element) => {
+          if (element.type === 'text' && element.class.includes('role-code')) {
+            element.codeLanguage = codeLanguageFromLabel(value);
+          }
+        }, { label: `Set code language to ${value}` }),
+      ));
+    }
 
     wrap.appendChild(mixedCheckboxField(
       'Size box to text',
@@ -2044,6 +2058,18 @@ export class Inspector {
         roleSelect.append(roleSpan, roleDrop);
         roleSelect.classList.add('text-role');
         typography.content.prepend(roleSelect);
+        if (el.class.includes('role-code')) {
+          const language = selectField(
+            'Language', CODE_LANGUAGE_OPTIONS,
+            CODE_LANGUAGE_LABELS[el.codeLanguage ?? 'python'],
+            (value) => this.store.updateSelected((element) => {
+              if (element.type === 'text') element.codeLanguage = codeLanguageFromLabel(value);
+            }, { label: `Set code language to ${value}` }),
+          );
+          language.classList.add('code-language');
+          roleSelect.after(language);
+        }
+
 
         // One click to drop every customisation (and any pinned copy or
         // importer class with it), so the theme decides all of the box's type
@@ -2546,7 +2572,8 @@ export class Inspector {
   } | null {
     if (!role) return null;
     const theme = deckTheme(this.store.get().deck);
-    return theme?.fonts[role as keyof typeof theme.fonts] ?? null;
+    return theme?.fonts[role as keyof typeof theme.fonts]
+      ?? (role === 'code' ? effectiveThemeStyle(this.store.get().deck).fonts.code : null);
   }
 
   /** The solid colour reported by the live canvas after the full CSS cascade. */
@@ -2566,8 +2593,8 @@ export class Inspector {
     const style = this.store.get().deck.themeStyle;
     if (!style) return null;
     const role = el.class.find((name) =>
-      /^role-(title|heading|body|caption)$/.test(name))?.slice(5) as
-      | 'title' | 'heading' | 'body' | 'caption' | undefined;
+      /^role-(title|heading|body|caption|code)$/.test(name))?.slice(5) as
+      | 'title' | 'heading' | 'body' | 'caption' | 'code' | undefined;
     return colorForInput(
       (role ? style.fonts[role].color : undefined) ?? style.colors.text,
     );
@@ -3685,11 +3712,11 @@ type ThemeTypeRole = ThemeTextRole;
  * panel, and base is the untagged default. A box that already carries one of
  * them shows it, so the dropdown never misreports a legacy deck.
  */
-const ROLE_ORDER: ThemeTypeRole[] = ['title', 'body', 'caption'];
+const ROLE_ORDER: ThemeTypeRole[] = ['title', 'body', 'caption', 'code'];
 const ROLE_LABELS: Record<ThemeTypeRole, string> = {
-  title: 'Title', heading: 'Heading', body: 'Body', caption: 'Caption', base: 'Base',
+  title: 'Title', heading: 'Heading', body: 'Body', caption: 'Caption', code: 'Code', base: 'Base',
 };
-const ROLE_CLASS = /^role-(title|heading|body|caption|base)$/;
+const ROLE_CLASS = /^role-(title|heading|body|caption|code|base)$/;
 
 function button(label: string, onClick: () => void, variant = ''): HTMLButtonElement {
   const b = document.createElement('button');

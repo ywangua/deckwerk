@@ -10,7 +10,11 @@ export default defineConfig({
         input: resolve(__dirname, 'src/main/index.ts'),
         // Bundling ws breaks its optional native bufferutil/utf-8-validate
         // loading (bufferUtil.unmask is not a function at runtime).
-        external: ['ws', 'bufferutil', 'utf-8-validate'],
+        // Electron-vite's ESM shim mistakes "import" in language keyword
+        // tables for a JS import. Load CodeMirror and Lezer from runtime
+        // dependencies in main, keeping their shared parser/tag identities
+        // together. Browser builds still bundle the highlighters.
+        external: ['ws', 'bufferutil', 'utf-8-validate', /^@codemirror\//, /^@lezer\//],
       },
     },
     resolve: { alias: { '@shared': shared } },

@@ -1,3 +1,4 @@
+import { codeFont, TEXT_ROLE_CLASS, type TextRole } from './textRoles.js';
 import type { Deck, Slide, SlideElement, ThemeSelection, ThemeStyle } from './deck.js';
 import { type FontSet, deckProseMax, fontSetCss, roleForElement } from './fontSets.js';
 
@@ -107,6 +108,7 @@ export const THEMES: ThemePreset[] = [
       heading: { family: EDITORIAL_SERIF, size: 64, weight: 400, lineHeight: 1.08, letterSpacing: '-0.015em' },
       body: { family: AVENIR, size: 48, weight: 400, lineHeight: 1.32, letterSpacing: '0' },
       caption: { family: AVENIR, size: 30, weight: 500, lineHeight: 1.3, letterSpacing: '0.015em', color: '#6b6862' },
+      code: codeFont({ size: 30, lineHeight: 1.3 }),
       base: { family: AVENIR, size: 42, weight: 400, lineHeight: 1.34, letterSpacing: '0' },
     },
     palette: ['#191918', '#6b6862', '#c96442', '#6a8fab', '#71815d', '#d6a756', '#ece7dd', '#faf9f5'],
@@ -121,6 +123,7 @@ export const THEMES: ThemePreset[] = [
       heading: { family: HELVETICA, size: 62, weight: 500, lineHeight: 1.08, letterSpacing: '-0.025em' },
       body: { family: INTER, size: 46, weight: 400, lineHeight: 1.34, letterSpacing: '-0.005em' },
       caption: { family: MONO, size: 29, weight: 500, lineHeight: 1.3, letterSpacing: '0.025em', color: '#686a73' },
+      code: codeFont({ size: 29, lineHeight: 1.3 }),
       base: { family: INTER, size: 42, weight: 400, lineHeight: 1.34, letterSpacing: '0' },
     },
     palette: ['#222326', '#686a73', '#5e6ad2', '#8a7cf0', '#378a78', '#bd6f49', '#e4e6eb', '#f4f5f8'],
@@ -135,6 +138,7 @@ export const THEMES: ThemePreset[] = [
       heading: { family: AVENIR, size: 66, weight: 600, lineHeight: 1.06, letterSpacing: '-0.02em' },
       body: { family: EDITORIAL_SERIF, size: 47, weight: 400, lineHeight: 1.36, letterSpacing: '0' },
       caption: { family: MONO, size: 29, weight: 500, lineHeight: 1.3, letterSpacing: '0.05em', color: '#716b66' },
+      code: codeFont({ size: 29, lineHeight: 1.3 }),
       base: { family: EDITORIAL_SERIF, size: 42, weight: 400, lineHeight: 1.36, letterSpacing: '0' },
     },
     palette: ['#201d1b', '#716b66', '#635bff', '#e25950', '#0a8f79', '#d98923', '#eee9e3', '#fffdf9'],
@@ -149,6 +153,7 @@ export const THEMES: ThemePreset[] = [
       heading: { family: HELVETICA, size: 68, weight: 700, lineHeight: 1.02, letterSpacing: '-0.03em' },
       body: { family: INTER, size: 48, weight: 400, lineHeight: 1.28, letterSpacing: '-0.01em' },
       caption: { family: MONO, size: 30, weight: 600, lineHeight: 1.22, letterSpacing: '0.07em', color: '#4f4f4f' },
+      code: codeFont({ size: 30, lineHeight: 1.22 }),
       base: { family: INTER, size: 43, weight: 400, lineHeight: 1.3, letterSpacing: '0' },
     },
     palette: ['#111111', '#4f4f4f', '#e12d39', '#0759b8', '#ef9b36', '#218c74', '#eeeeec', '#ffffff'],
@@ -163,6 +168,7 @@ export const THEMES: ThemePreset[] = [
       heading: { family: HUMANIST, size: 64, weight: 400, lineHeight: 1.1, letterSpacing: '-0.01em' },
       body: { family: EDITORIAL_SERIF, size: 46, weight: 400, lineHeight: 1.38, letterSpacing: '0' },
       caption: { family: HUMANIST, size: 30, weight: 500, lineHeight: 1.32, letterSpacing: '0.025em', color: '#82766e' },
+      code: codeFont({ size: 30, lineHeight: 1.32 }),
       base: { family: EDITORIAL_SERIF, size: 42, weight: 400, lineHeight: 1.38, letterSpacing: '0' },
     },
     palette: ['#383431', '#82766e', '#c96f52', '#6f8f78', '#6688a3', '#d1a34b', '#eee7dc', '#fffaf2'],
@@ -177,6 +183,7 @@ export const THEMES: ThemePreset[] = [
       heading: { family: HELVETICA, size: 62, weight: 500, lineHeight: 1.06, letterSpacing: '-0.02em' },
       body: { family: INTER, size: 46, weight: 400, lineHeight: 1.34, letterSpacing: '0' },
       caption: { family: MONO, size: 29, weight: 500, lineHeight: 1.3, letterSpacing: '0.04em', color: '#97918a' },
+      code: codeFont({ size: 29, lineHeight: 1.3 }),
       base: { family: INTER, size: 42, weight: 400, lineHeight: 1.34, letterSpacing: '0' },
     },
     palette: ['#ece6dc', '#97918a', '#d4a955', '#7fa8c9', '#8fae8b', '#c9705e', '#2a2724', '#141210'],
@@ -191,6 +198,7 @@ export const THEMES: ThemePreset[] = [
       heading: { family: DIDONE, size: 68, weight: 400, lineHeight: 1.08, letterSpacing: '0' },
       body: { family: OPTIMA, size: 47, weight: 400, lineHeight: 1.36, letterSpacing: '0.005em' },
       caption: { family: OPTIMA, size: 30, weight: 500, lineHeight: 1.3, letterSpacing: '0.06em', color: '#7d7468' },
+      code: codeFont({ size: 30, lineHeight: 1.3 }),
       base: { family: OPTIMA, size: 42, weight: 400, lineHeight: 1.36, letterSpacing: '0.005em' },
     },
     palette: ['#232019', '#7d7468', '#8e3b3b', '#3f5e63', '#a3803c', '#5d6b47', '#efe8da', '#f7f2e9'],
@@ -205,6 +213,7 @@ export const THEMES: ThemePreset[] = [
       heading: { family: BASKERVILLE, size: 62, weight: 400, lineHeight: 1.12, letterSpacing: '0' },
       body: { family: BOOK_SERIF, size: 46, weight: 400, lineHeight: 1.4, letterSpacing: '0' },
       caption: { family: HUMANIST, size: 29, weight: 500, lineHeight: 1.32, letterSpacing: '0.03em', color: '#847b6d' },
+      code: codeFont({ size: 29, lineHeight: 1.32 }),
       base: { family: BOOK_SERIF, size: 42, weight: 400, lineHeight: 1.4, letterSpacing: '0' },
     },
     palette: ['#2b271f', '#847b6d', '#2e5e4e', '#7c4a33', '#5a6b8c', '#a88b3d', '#f0ead9', '#fbf7ef'],
@@ -219,6 +228,7 @@ export const THEMES: ThemePreset[] = [
       heading: { family: FUTURA, size: 64, weight: 400, lineHeight: 1.06, letterSpacing: '0' },
       body: { family: AVENIR, size: 46, weight: 400, lineHeight: 1.32, letterSpacing: '0' },
       caption: { family: FUTURA, size: 29, weight: 500, lineHeight: 1.28, letterSpacing: '0.09em', color: '#6d675c' },
+      code: codeFont({ size: 29, lineHeight: 1.28 }),
       base: { family: AVENIR, size: 42, weight: 400, lineHeight: 1.32, letterSpacing: '0' },
     },
     palette: ['#14151a', '#6d675c', '#d1342c', '#23579c', '#e8a713', '#2c6e49', '#ebe4d5', '#f5f0e6'],
@@ -233,6 +243,7 @@ export const THEMES: ThemePreset[] = [
       heading: { family: TERMINAL, size: 56, weight: 600, lineHeight: 1.1, letterSpacing: '-0.01em' },
       body: { family: TERMINAL, size: 46, weight: 400, lineHeight: 1.4, letterSpacing: '0' },
       caption: { family: TERMINAL, size: 28, weight: 500, lineHeight: 1.34, letterSpacing: '0.05em', color: '#7d9486' },
+      code: codeFont({ size: 28, lineHeight: 1.34 }),
       base: { family: TERMINAL, size: 40, weight: 400, lineHeight: 1.42, letterSpacing: '0' },
     },
     palette: ['#d7e4dc', '#7d9486', '#4ade80', '#e8b04b', '#6bb2d6', '#d67676', '#1a231e', '#0d1210'],
@@ -247,6 +258,7 @@ export const THEMES: ThemePreset[] = [
       heading: { family: AVENIR_CONDENSED, size: 72, weight: 500, lineHeight: 1.08, letterSpacing: '0' },
       body: { family: AVENIR, size: 48, weight: 400, lineHeight: 1.34, letterSpacing: '0' },
       caption: { family: AVENIR, size: 30, weight: 400, lineHeight: 1.3, letterSpacing: '0.01em', color: '#5f6772' },
+      code: codeFont({ size: 30, lineHeight: 1.3 }),
       base: { family: AVENIR, size: 42, weight: 400, lineHeight: 1.34, letterSpacing: '0' },
     },
     palette: ['#1d2126', '#5f6772', '#2c6e9b', '#b4552f', '#3f7a5e', '#c2933a', '#e6e9ec', '#f7f8f9'],
@@ -261,6 +273,7 @@ export const THEMES: ThemePreset[] = [
       heading: { family: SLAB, size: 60, weight: 400, lineHeight: 1.12, letterSpacing: '0' },
       body: { family: SOURCE_SANS, size: 47, weight: 400, lineHeight: 1.36, letterSpacing: '0' },
       caption: { family: SOURCE_SANS, size: 30, weight: 400, lineHeight: 1.3, letterSpacing: '0.01em', color: '#77706a' },
+      code: codeFont({ size: 30, lineHeight: 1.3 }),
       base: { family: SOURCE_SANS, size: 42, weight: 400, lineHeight: 1.36, letterSpacing: '0' },
     },
     palette: ['#23201c', '#77706a', '#17605f', '#a8442c', '#4a6b93', '#b3862f', '#e8e3da', '#fbfaf8'],
@@ -278,7 +291,7 @@ export const THEMES: ThemePreset[] = [
 export function fullThemeSelection(themeId: string): ThemeSelection {
   return {
     preset: themeId,
-    roles: ['title', 'heading', 'body', 'caption', 'base'],
+    roles: ['title', 'heading', 'body', 'caption', 'code', 'base'],
     fontFamily: true,
     fontWeight: true,
     typeScale: true,
@@ -493,12 +506,19 @@ export function themeStyleCss(style: ThemeStyle, label = 'Custom deck defaults')
     `}`,
     ``,
     `.role-caption { color: ${style.colors.muted}; }`,
+    `.role-code { ${Object.entries(themeMode(style) === 'dark' ? {
+      keyword: '#c4b5fd', string: '#86efac', number: '#fdba74', comment: '#94a3b8',
+      function: '#93c5fd', type: '#67e8f9', operator: '#fda4af',
+    } : {
+      keyword: '#7c3aed', string: '#166534', number: '#9a3412', comment: '#64748b',
+      function: '#1d4ed8', type: '#0e7490', operator: '#9f1239',
+    }).map(([token, color]) => `--code-${token}: ${color};`).join(' ')} }`,
     ``,
   ].join('\n');
 }
 
 export type ThemeScope = 'deck' | 'slide' | 'slides' | 'selection';
-export type ThemeTextRole = 'title' | 'heading' | 'body' | 'caption' | 'base';
+export type ThemeTextRole = TextRole;
 export interface ThemeAdoption {
   scope: ThemeScope;
   roles: ThemeTextRole[];
@@ -520,7 +540,7 @@ export interface ThemeAdoption {
  * (and restyle) text the first click had already settled.
  */
 function explicitRole(el: SlideElement): ThemeTextRole | null {
-  const found = el.class.find((name) => /^role-(title|heading|body|caption|base)$/.test(name));
+  const found = el.class.find((name) => TEXT_ROLE_CLASS.test(name));
   return (found?.slice(5) as ThemeTextRole | undefined) ?? null;
 }
 
@@ -802,6 +822,7 @@ export const STOCK_STYLESHEET_STYLE: ThemeStyle = {
     heading: { family: '"Helvetica Neue", Inter, system-ui, sans-serif', size: 58, weight: 600, lineHeight: 1.28, letterSpacing: 'normal' },
     body: { family: '"Helvetica Neue", Inter, system-ui, sans-serif', size: 48, weight: 400, lineHeight: 1.3, letterSpacing: 'normal' },
     caption: { family: '"Helvetica Neue", Inter, system-ui, sans-serif', size: 30, weight: 400, lineHeight: 1.3, letterSpacing: 'normal', color: '#666666' },
+    code: codeFont({ size: 30, lineHeight: 1.3 }),
     base: { family: '"Helvetica Neue", Inter, system-ui, sans-serif', size: 48, weight: 400, lineHeight: 1.28, letterSpacing: 'normal' },
   },
   palette: [],
@@ -843,6 +864,7 @@ const ROLE_SELECTORS: Record<string, ThemeTextRole> = {
   '.role-heading': 'heading',
   '.role-body': 'body',
   '.role-caption': 'caption',
+  '.role-code': 'code',
 };
 
 /**
@@ -859,6 +881,7 @@ export function themeStyleFromCss(css: string, base: ThemeStyle): ThemeStyle {
   const stripped = withoutAtRules(css.replace(/\/\*[\s\S]*?\*\//g, ''));
   const block = /([^{}]+)\{([^{}]*)\}/g;
   let match: RegExpExecArray | null;
+  let hasCodeRule = false;
   while ((match = block.exec(stripped)) !== null) {
     const selectors = match[1].split(',').map((part) => part.trim());
     const declarations = parseDeclarations(match[2]);
@@ -873,6 +896,7 @@ export function themeStyleFromCss(css: string, base: ThemeStyle): ThemeStyle {
         applyFontDeclarations(style.fonts.base, declarations, { scale: true, face: false });
       } else if (selector in ROLE_SELECTORS) {
         const role = ROLE_SELECTORS[selector];
+        if (role === 'code') hasCodeRule = true;
         applyFontDeclarations(style.fonts[role], declarations, { scale: true });
         const color = declarations.get('color');
         if (color) {
@@ -882,6 +906,7 @@ export function themeStyleFromCss(css: string, base: ThemeStyle): ThemeStyle {
       }
     }
   }
+  if (!hasCodeRule) style.fonts.code = codeFont(style.fonts.caption);
   return style;
 }
 

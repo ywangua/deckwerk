@@ -366,7 +366,9 @@ export function measureSlides(doc: Document): MeasuredSlide[] {
   /** A node's markup with its maths and escaped dollars as authored. */
   const authoredMarkup = (node: HTMLElement): string => {
     const clone = node.cloneNode(true) as HTMLElement;
-    authoredMathIn(clone)();
+    if (!node.closest('.role-code')) authoredMathIn(clone)();
+    for (const token of clone.querySelectorAll('[data-code-token]')) token.replaceWith(...token.childNodes);
+    clone.normalize();
     return clone.innerHTML;
   };
 
@@ -410,7 +412,9 @@ export function measureSlides(doc: Document): MeasuredSlide[] {
         copy.style.setProperty(property, value);
       }
     });
-    restoreMath();
+    if (!node.closest('.role-code')) restoreMath();
+    for (const token of clone.querySelectorAll('[data-code-token]')) token.replaceWith(...token.childNodes);
+    clone.normalize();
     return clone.innerHTML;
   };
 
@@ -1263,7 +1267,7 @@ export function measureSlides(doc: Document): MeasuredSlide[] {
       elementId: node.dataset.elementId ?? null,
       // The structural classes are the renderer's to add, not the deck's to
       // store; only the author's own classes belong in the element.
-      classes: independent ? [] : [...node.classList].filter((name) =>
+      classes: independent ? (node.classList.contains('role-code') ? ['role-code'] : []) : [...node.classList].filter((name) =>
         name !== 'slide' && name !== 'element' && !name.startsWith('element-')),
       dataset: { ...node.dataset } as Record<string, string>,
       rect: box,
@@ -1546,7 +1550,8 @@ export function measureSlides(doc: Document): MeasuredSlide[] {
       // the deck's own text inside the player's pre-wrap wrapper, so its
       // newlines are line breaks the slide shows, and a trailing space is
       // part of what it holds.
-      if (typeOf(node) === 'text' && !/^(pre|code)$/.test(node.tagName.toLowerCase())
+      if (typeOf(node) === 'text' && !node.classList.contains('role-code')
+        && !/^(pre|code)$/.test(node.tagName.toLowerCase())
         && !node.querySelector(':scope > .text-body > [data-text-content]')) {
         const collapsed = node.innerHTML.replace(/\s+/g, ' ').trim();
         if (collapsed !== node.innerHTML) node.innerHTML = collapsed;

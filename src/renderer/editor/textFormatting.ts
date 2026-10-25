@@ -1,3 +1,4 @@
+import { codeFont } from '../../shared/textRoles.js';
 import type { SlideElement } from '@shared/deck.js';
 import { isRelativeFontSize } from '@shared/htmlSafety.js';
 
@@ -355,6 +356,8 @@ export function applyTextRole(
     letterSpacing: string;
   } | null,
 ): void {
+  const isCode = role === 'code' || role === 'role-code';
+  if (isCode && !defaults) defaults = codeFont({ size: 30, lineHeight: 1.3 });
   element.class = element.class.filter((name) => !name.startsWith('role-'));
   if (role) element.class.push(role.startsWith('role-') ? role : `role-${role}`);
   // Choosing a role is asking for that role's type: its properties are the
@@ -379,6 +382,12 @@ export function applyTextRole(
   element.style = style;
   if (Object.keys(contentStyle).length > 0) element.contentStyle = contentStyle;
   else delete element.contentStyle;
+  if (isCode) {
+    element.codeLanguage ??= 'python';
+    delete element.style['text-align'];
+    if (element.contentStyle) delete element.contentStyle['text-align'];
+    setWholeTextAlignment(element, 'left');
+  }
   // Runs inside the markup are content formatting, not role formatting: a
   // bold word or a small unit after a figure survives a change of role. Only
   // the box's own copies of the type properties are the role's to replace.

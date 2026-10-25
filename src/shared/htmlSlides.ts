@@ -1,3 +1,5 @@
+import { isCodeLanguage } from './codeLanguages.js';
+import { highlightedCodeHtml } from './codeHighlight.js';
 import type { AgentOperation } from './agent.js';
 import { MediaEffectSchema, MIRRORED_TEXT_STYLE_PROPERTIES, SlideSchema } from './deck.js';
 import type { Deck, MediaEffect, Slide, SlideElement, TimelineEntry } from './deck.js';
@@ -286,9 +288,11 @@ export function renderAuthoredMath(
   const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT);
   while (walker.nextNode()) texts.push(walker.currentNode as Text);
   for (const text of texts) {
+    if (text.parentElement?.closest('.role-code')) continue;
     if (text.data.includes('\\$')) text.data = text.data.replace(/\\\$/g, escapedDollar);
   }
   renderMath(doc.body, {
+    ignoredClasses: ['role-code'],
     delimiters: [
       { left: '$$', right: '$$', display: true },
       { left: '$', right: '$', display: false },
@@ -1468,7 +1472,9 @@ export function elementFromNode(
       ? `<${node.tag}>${node.html.trim()}</${node.tag}>`
       // A deck text box's own markup is kept exactly: the player shows it
       // pre-wrap, so even a trailing space is something it holds.
-      : node.preformatted ? node.html : node.html.trim()),
+      : node.preformatted || node.classes.includes('role-code') ? node.html : node.html.trim()),
+    ...(isCodeLanguage(node.dataset.codeLanguage)
+      ? { codeLanguage: node.dataset.codeLanguage } : {}),
     align: alignFrom(node.attrs.textAlign),
     valign: valignFrom(node.dataset.valign),
     ...(contentStyle ? { contentStyle } : {}),
@@ -1645,9 +1651,10 @@ function elementToHtml(element: SlideElement, build?: TimelineEntry, base?: stri
             .join(' '))}>`
         + `${element.table
           ? applyTableColumnWidths(element.html, element.table.columnWidths)
-          : element.html}</div></div>`;
+          : element.class.includes('role-code') ? highlightedCodeHtml(element.html, element.codeLanguage) : element.html}</div></div>`;
       return `  <div ${attrs} class="element element-text${element.class.length > 0
         ? ` ${escape(element.class.join(' '))}` : ''}" data-valign="${element.valign}"`
+        + `${element.codeLanguage ? ` data-code-language="${element.codeLanguage}"` : ''}`
         + effectsDataAttrs(element)
         + `${element.contentStyle && Object.keys(element.contentStyle).length > 0
           ? ` data-content-style="${escape(encodeURIComponent(JSON.stringify(element.contentStyle)))}"` : ''}`

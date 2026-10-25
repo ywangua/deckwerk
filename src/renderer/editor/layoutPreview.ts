@@ -60,7 +60,7 @@ export function previewSlide(layout: FixedLayout, master: LayoutMaster): Slide {
   };
 }
 
-const PREVIEW_ROLES = ['title', 'heading', 'body', 'caption'] as const;
+const PREVIEW_ROLES = ['title', 'heading', 'body', 'caption', 'code'] as const;
 
 /**
  * Paint a theme onto a preview clone that renders outside any theme stylesheet.

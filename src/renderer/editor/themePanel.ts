@@ -128,7 +128,7 @@ export function createThemePanel(deps: ThemePanelDeps): ThemePanel {
 
   const themeAdoption: ThemeAdoption = {
     scope: 'slides',
-    roles: ['title', 'heading', 'body', 'caption'],
+    roles: ['title', 'heading', 'body', 'caption', 'code'],
     // A family and the weight it is set in are one decision: "Typography".
     fontFamily: true,
     fontWeight: true,
@@ -649,7 +649,7 @@ export function createThemePanel(deps: ThemePanelDeps): ThemePanel {
     // Heading rides along with Title: headings are what imports and agents tag,
     // not a role authors pick, so it gets no box of its own.
     const roleTitle = groupLabel('Text roles');
-    const roleBoxes = (['title', 'body', 'caption'] as const).map((role) => {
+    const roleBoxes = (['title', 'body', 'caption', 'code'] as const).map((role) => {
       const box = optionBox(role[0].toUpperCase() + role.slice(1), themeAdoption.roles.includes(role));
       box.input.addEventListener('change', () => {
         const covered: ThemeTextRole[] = role === 'title' ? ['title', 'heading'] : [role];
@@ -805,11 +805,11 @@ export function createThemePanel(deps: ThemePanelDeps): ThemePanel {
       'Edits change deck defaults and new slides. Existing slides follow after Apply. The canvas previews the draft.',
     ));
 
-    const ROLE_LABELS: Record<'title' | 'body' | 'caption', string> = {
-      title: 'Title', body: 'Body', caption: 'Caption',
+    const ROLE_LABELS: Record<'title' | 'body' | 'caption' | 'code', string> = {
+      title: 'Title', body: 'Body', caption: 'Caption', code: 'Code',
     };
     themeEditor.appendChild(groupLabel('Typefaces'));
-    for (const role of ['title', 'body', 'caption'] as const) {
+    for (const role of ['title', 'body', 'caption', 'code'] as const) {
       themeEditor.appendChild(fontFamilyField(
         `${ROLE_LABELS[role]} typeface`,
         style.fonts[role].family,
@@ -819,7 +819,7 @@ export function createThemePanel(deps: ThemePanelDeps): ThemePanel {
       ));
     }
     themeEditor.appendChild(groupLabel('Type scale'));
-    for (const role of ['title', 'body', 'caption'] as const) {
+    for (const role of ['title', 'body', 'caption', 'code'] as const) {
       const sizeField = numberField(
         `${ROLE_LABELS[role]} size`,
         style.fonts[role].size,

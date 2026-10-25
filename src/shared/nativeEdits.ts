@@ -1,3 +1,4 @@
+import { CODE_LANGUAGES } from './codeLanguages.js';
 import { z } from 'zod';
 import { DeckSchema, ElementSchema, SlideSchema, parseDeck, type Deck, type SlideElement } from './deck.js';
 import { diffDecks } from './deckDiff.js';
@@ -83,6 +84,7 @@ const COMMON_ELEMENT_PROPERTIES: PropertyDoc[] = [
 
 const ELEMENT_PROPERTIES: Record<SlideElement['type'], PropertyDoc[]> = {
   text: [
+    { path: 'codeLanguage', type: 'enum', values: [...CODE_LANGUAGES], description: 'Syntax highlighting language for role-code text. Omitted means Python.', example: 'python', unset: 'Restore the default Python language.' },
     { path: 'html', type: 'string', description: 'Rich text HTML inside the text box.', example: 'A unified title' },
     {
       path: 'contentStyle.<css-property>', type: 'string',
@@ -169,7 +171,7 @@ const DECK_PROPERTIES: PropertyDoc[] = [
   { path: 'canvas.w', type: 'positive number', description: 'Deck canvas width.', example: 1920 },
   { path: 'canvas.h', type: 'positive number', description: 'Deck canvas height.', example: 1080 },
   { path: 'themePreset', type: 'string|null', description: 'Installed design preset identity.', example: null },
-  { path: 'themeStyle.fonts.<role>.<property>', type: 'theme font value', description: 'Theme typography for title, heading, body, caption, or base: family, size, weight, lineHeight, letterSpacing, and optional color.', example: 'Inter' },
+  { path: 'themeStyle.fonts.<role>.<property>', type: 'theme font value', description: 'Theme typography for title, heading, body, caption, code, or base: family, size, weight, lineHeight, letterSpacing, and optional color.', example: 'Inter' },
   { path: 'themeStyle.colors.<role>', type: 'CSS color', description: 'Theme background, text, muted, or accent color.', example: '#f7f7f8' },
   { path: 'themeStyle.palette', type: 'CSS color[]', description: 'Theme color palette.', example: ['#101218', '#f7f7f8', '#6ea8fe'] },
   { path: 'morphEasing', type: 'enum', values: ['ease-in-out', 'ease-out', 'linear'], description: `Deck-wide ${MORPH_NAME} easing.`, example: 'ease-in-out' },
