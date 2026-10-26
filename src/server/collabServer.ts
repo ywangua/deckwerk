@@ -15,7 +15,7 @@ import { WebSocketServer, type WebSocket } from 'ws';
 import {
   createDeck, importAsset, importWebPage, loadDeck, loadTheme, originalAssetPath, resolveAsset, saveDeck,
 } from '../main/deckStore.js';
-import { exportDeck, webExportUnavailableReason } from '../main/exportDeck.js';
+import { exportDeck, exportDeckHtml, webExportUnavailableReason } from '../main/exportDeck.js';
 import { capabilities } from '../shared/capabilities.js';
 import { getFfmpegPath, getFfprobePath, probeMedia } from '../main/ffmpeg.js';
 import { DeckWire } from './deckWire.js';
@@ -283,6 +283,8 @@ export interface CollabServerOptions {
   rootDir: string;
   /** Directory holding the built browser client; may be absent in dev (vite proxy). */
   clientDir?: string;
+  /** Optional standalone player build, alongside a custom browser client build. */
+  exportPlayerDir?: string;
   port?: number;
   host?: string;
   /**
@@ -2374,7 +2376,7 @@ export async function startCollabServer(options: CollabServerOptions): Promise<R
       }
       // A browser download cannot show an error once the bytes start, so the
       // client asks first and the answer decides whether it starts one at all.
-      const unavailable = webExportUnavailableReason();
+      const unavailable = webExportUnavailableReason(options.exportPlayerDir);
       if (url.searchParams.get('probe') === '1') {
         return unavailable
           ? respondJson(response, 501, { error: unavailable })
@@ -2386,7 +2388,23 @@ export async function startCollabServer(options: CollabServerOptions): Promise<R
       const staging = await mkdtemp(join(tmpdir(), 'deckwerk-web-'));
       const outDir = join(staging, sanitizeFilename(deckParam));
       try {
-        await exportDeck(deckDir, room.session.deck, outDir);
+        if (url.searchParams.get('format') === 'html') {
+          const quality = url.searchParams.get('quality') ?? 'original';
+          if (!['original', 'balanced', 'compact'].includes(quality)) {
+            return respondJson(response, 400, { error: 'invalid export quality' });
+          }
+          const file = join(staging, 'presentation.html');
+          await exportDeckHtml(deckDir, room.session.deck, file, undefined,
+            { quality: quality as 'original' | 'balanced' | 'compact', dropSkipped: true, playerBundleDir: options.exportPlayerDir });
+          response.writeHead(200, {
+            'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store',
+            'content-length': (await stat(file)).size,
+            'content-disposition': `attachment; filename="${sanitizeFilename(deckParam)}.html"`,
+          });
+          await pipeline(createReadStream(file), response);
+          return;
+        }
+        await exportDeck(deckDir, room.session.deck, outDir, undefined, { playerBundleDir: options.exportPlayerDir });
         // Collected from the staging root, so the archive unpacks into a
         // folder named after the deck rather than scattering player.js and
         // index.html into wherever the recipient double-clicked it.
@@ -2401,6 +2419,7 @@ export async function startCollabServer(options: CollabServerOptions): Promise<R
       } catch (error) {
         // The export player bundle is a build artefact; a server started
         // without it must say so rather than serve a broken archive.
+        if (response.headersSent) { response.destroy(); return; }
         respondJson(response, 500, {
           error: String(error instanceof Error ? error.message : error),
         });

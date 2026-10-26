@@ -65,7 +65,7 @@ import {
   serializeDeck,
   saveTheme,
 } from './deckStore.js';
-import { exportDeck } from './exportDeck.js';
+import { exportDeck, exportDeckHtml } from './exportDeck.js';
 import { writeExportThumbnail } from './exportThumbnail.js';
 import { probeMedia, runTrim } from './ffmpeg.js';
 import { attachRendererHealth } from './windowHealth.js';
@@ -1241,6 +1241,22 @@ function registerHandlers(): void {
       reportOperation(event, operationId, message, null);
     });
     return dir;
+  });
+
+  ipcMain.handle(IPC.exportSingleHtml, async (
+    event, request: WebExportRequest = {}, operationId?: string,
+  ): Promise<string | null> => {
+    const s = requireSession(event);
+    const target = await showSaveDialog({
+      title: 'Export as a single HTML file', buttonLabel: 'Export',
+      defaultPath: `${basename(s.dir)}.html`,
+      filters: [{ name: 'HTML', extensions: ['html'] }],
+    });
+    if (target.canceled || !target.filePath) return null;
+    await exportDeckHtml(s.dir, s.deck, target.filePath, (message, ratio) => {
+      reportOperation(event, operationId, message, ratio);
+    }, { quality: request.quality ?? 'original', dropSkipped: true });
+    return target.filePath;
   });
 
   ipcMain.handle(IPC.exportPdf, async (

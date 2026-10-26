@@ -18,6 +18,8 @@ import { eventOnInteractiveWeb, slideLinkFromEvent } from '../player/links.js';
 declare global {
   interface Window {
     __DECK__?: unknown;
+    /** Embedded resources for the single-file HTML export. */
+    __DECK_ASSETS__?: Record<string, string>;
     /** Test/diagnostic handle for rendering an exact slide build state. */
     __SLIDE_PLAYER__?: Player;
   }
@@ -35,8 +37,14 @@ function boot(): void {
   const player = new Player({
     deck,
     container: root,
-    // Assets sit next to index.html, so their deck-relative paths already work.
-    resolveSrc: (src) => src,
+    // Folder exports use relative paths; single-file exports embed a resource map.
+    resolveSrc: (src) => {
+      const [path, fragment] = src.split('#', 2);
+      let key = path.split('?')[0].replace(/^\.\//, '');
+      try { key = decodeURIComponent(key); } catch { /* use the authored path */ }
+      const embedded = window.__DECK_ASSETS__?.[key];
+      return embedded ? embedded + (fragment ? `#${fragment}` : '') : src;
+    },
   });
   window.__SLIDE_PLAYER__ = player;
 

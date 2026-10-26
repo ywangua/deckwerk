@@ -152,6 +152,8 @@ const api = {
     ipcRenderer.invoke(IPC.pptxImport, operationId),
   exportBundle: (request: WebExportRequest = {}, operationId?: string): Promise<string | null> =>
     ipcRenderer.invoke(IPC.exportBundle, request, operationId),
+  exportSingleHtml: (request: WebExportRequest = {}, operationId?: string): Promise<string | null> =>
+    ipcRenderer.invoke(IPC.exportSingleHtml, request, operationId),
   exportPdf: (request: PdfExportRequest = {}, operationId?: string): Promise<string | null> =>
     ipcRenderer.invoke(IPC.exportPdf, request, operationId),
   onOperationProgress: (fn: (p: OperationProgress) => void): (() => void) =>

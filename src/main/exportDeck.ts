@@ -1,6 +1,9 @@
+import { randomUUID } from 'node:crypto';
+import { tmpdir } from 'node:os';
+import { SingleHtmlResources } from './singleHtmlResources.js';
 import { existsSync } from 'node:fs';
-import { mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
-import { dirname, extname, join, relative, resolve } from 'node:path';
+import { mkdir, mkdtemp, readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
+import { basename, dirname, extname, join, relative, resolve } from 'node:path';
 import type { Deck, Slide } from '@shared/deck.js';
 import type { WebExportQuality } from '@shared/ipc.js';
 import { loadTheme, resolveAsset } from './deckStore.js';
@@ -39,14 +42,16 @@ function playerBundleDir(): string {
  * only find out by trying. Callers that hand the result straight to a browser
  * download need to know before they start writing bytes.
  */
-export function webExportUnavailableReason(): string | null {
-  const playerJs = join(playerBundleDir(), 'player.js');
+export function webExportUnavailableReason(bundleDir = playerBundleDir()): string | null {
+  const playerJs = join(bundleDir, 'player.js');
   return existsSync(playerJs)
     ? null
     : `Export player bundle not found at ${playerJs}. Run: npm run build:export`;
 }
 
 export interface WebExportOptions {
+  /** Use a freshly built player in tools/tests rather than a checkout artifact. */
+  playerBundleDir?: string;
   quality?: WebExportQuality;
   /**
    * Leave skipped slides out of the export altogether, media included. The
@@ -111,15 +116,65 @@ const VIDEO_EXTENSIONS = new Set(['.mp4', '.m4v', '.mov', '.webm', '.mkv', '.avi
 const IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.webp', '.bmp', '.tif', '.tiff', '.heic', '.heif', '.avif']);
 
 export async function exportDeck(
+  deckDir: string, deck: Deck, outDir: string,
+  onProgress?: (message: string, ratio: number | null) => void,
+  options: WebExportOptions = {},
+): Promise<WebExportResult> {
+  return (await exportDeckFolder(deckDir, deck, outDir, onProgress, options)).result;
+}
+
+/** The same web player and compression pipeline, delivered as one portable file. */
+export async function exportDeckHtml(
+  deckDir: string, deck: Deck, target: string,
+  onProgress?: (message: string, ratio: number | null) => void,
+  options: WebExportOptions = {},
+): Promise<WebExportResult> {
+  const staging = await mkdtemp(join(tmpdir(), 'deckwerk-html-'));
+  const temporary = join(dirname(target), `.${basename(target)}.${randomUUID()}.tmp`);
+  try {
+    const prepared = await exportDeckFolder(deckDir, deck, staging,
+      (message, ratio) => onProgress?.(message, ratio === null ? null : ratio * 0.8), options);
+    const resources = new SingleHtmlResources([staging, deckDir, options.playerBundleDir ?? playerBundleDir()],
+      (path) => onProgress?.(`Embedding ${path}`, null));
+    const assets: Record<string, string> = {};
+    const wanted = referencedAssets(prepared.deck);
+    const theme = await readFile(join(staging, 'theme.css'), 'utf8');
+    for (const src of wanted) {
+      const path = src.split(/[?#]/)[0];
+      const uri = await resources.asset(path);
+      if (uri) {
+        let key = path.replace(/^\.\//, '');
+        try { key = decodeURIComponent(key); } catch { /* retain the authored path */ }
+        assets[key] = uri;
+      }
+    }
+    const css = await resources.css(await readFile(join(staging, 'player.css'), 'utf8'), 'player.css')
+      + '\n' + await resources.css(theme);
+    onProgress?.('Embedding player.js', 0.95);
+    const script = (await readFile(join(staging, 'player.js'))).toString('base64');
+    const html = indexHtml(prepared.deck, { css, script, assets });
+    onProgress?.(`Writing ${basename(target)}`, 0.98);
+    await mkdir(dirname(target), { recursive: true });
+    await writeFile(temporary, html, 'utf8');
+    await rename(temporary, target);
+    onProgress?.('HTML export complete', 1);
+    return prepared.result;
+  } finally {
+    await rm(temporary, { force: true });
+    await rm(staging, { recursive: true, force: true });
+  }
+}
+
+async function exportDeckFolder(
   deckDir: string,
   deck: Deck,
   outDir: string,
   onProgress?: (message: string, ratio: number | null) => void,
   options: WebExportOptions = {},
-): Promise<WebExportResult> {
-  const unavailable = webExportUnavailableReason();
+): Promise<{ deck: Deck; result: WebExportResult }> {
+  const bundleDir = options.playerBundleDir ?? playerBundleDir();
+  const unavailable = webExportUnavailableReason(bundleDir);
   if (unavailable) throw new Error(unavailable);
-  const bundleDir = playerBundleDir();
   const playerJs = join(bundleDir, 'player.js');
   const quality = options.quality ?? 'original';
   const profile = PROFILES[quality];
@@ -235,7 +290,7 @@ export async function exportDeck(
   );
   doneWeight += fixedWeight;
   onProgress?.('Web export complete', 1);
-  return { assets: sources.size, sourceBytes: mediaBytes, exportedBytes, quality };
+  return { deck: rewritten, result: { assets: sources.size, sourceBytes: mediaBytes, exportedBytes, quality } };
 }
 
 interface SourceAsset {
@@ -588,7 +643,7 @@ export function rewriteAssetReferences(
  * The generated page. The deck is inlined as JSON so the export works off
  * `file://`, where fetching a sibling .json is blocked by CORS.
  */
-function indexHtml(deck: Deck): string {
+function indexHtml(deck: Deck, inline?: { css: string; script: string; assets: Record<string, string> }): string {
   // `</script>` inside the JSON would close the tag early; escaping the slash is
   // the standard defence and stays valid JSON.
   const json = JSON.stringify(deck).replace(/</g, '\\u003c');
@@ -598,8 +653,8 @@ function indexHtml(deck: Deck): string {
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>${escapeHtml(deck.title)}</title>
-    <link rel="stylesheet" href="./player.css" />
-    <link rel="stylesheet" href="./theme.css" />
+    ${inline ? `<style>${inline.css.replace(/<\/style/gi, '\\3c /style')}</style>` : `<link rel="stylesheet" href="./player.css" />
+    <link rel="stylesheet" href="./theme.css" />`}
     <style>
       html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
       #root { width: 100vw; height: 100vh; }
@@ -608,8 +663,8 @@ function indexHtml(deck: Deck): string {
   </head>
   <body>
     <div id="root"></div>
-    <script>window.__DECK__ = ${json};</script>
-    <script src="./player.js"></script>
+    <script>window.__DECK__ = ${json};${inline ? `window.__DECK_ASSETS__ = ${JSON.stringify(inline.assets).replace(/</g, '\\u003c')};` : ''}</script>
+    <script src="${inline ? `data:text/javascript;base64,${inline.script}` : './player.js'}"></script>
   </body>
 </html>
 `;

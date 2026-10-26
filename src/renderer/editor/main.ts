@@ -492,6 +492,7 @@ function buildToolbar(): void {
       options: [
         { label: 'PDF…', action: () => void exportPdf() },
         { label: 'Web…', action: () => void exportWeb() },
+        { label: 'Single HTML…', action: () => void exportWeb(true) },
       ],
     },
   ];
@@ -516,6 +517,7 @@ function buildToolbar(): void {
         { label: 'Save As…', action: () => void saveAsPresentation() },
         { label: 'Export PDF…', action: () => void exportPdf() },
         { label: 'Export Web…', action: () => void exportWeb() },
+        { label: 'Export Single HTML…', action: () => void exportWeb(true) },
       ],
     },
   ], { deckOnly: true });
@@ -676,16 +678,18 @@ async function startPresentation(speakerView = false): Promise<void> {
   });
 }
 
-async function exportWeb(): Promise<void> {
-  const choice = await showWebExportDialog();
+async function exportWeb(singleHtml = false): Promise<void> {
+  const choice = await showWebExportDialog(singleHtml);
   if (!choice) return;
   try {
     const dir = await runOperation('Preparing web export…', async (operation) => {
       operation.update('Saving deck.json and theme.css');
       await cssEditor.flush();
       await save();
-      operation.update('Waiting for an export folder');
-      return window.api.exportBundle({ quality: choice.quality }, operation.id);
+      operation.update(singleHtml ? 'Waiting for an HTML destination' : 'Waiting for an export folder');
+      return singleHtml
+        ? window.api.exportSingleHtml({ quality: choice.quality }, operation.id)
+        : window.api.exportBundle({ quality: choice.quality }, operation.id);
     });
     if (dir) setStatusMessage(`Exported to ${dir}`);
   } catch (err) {

@@ -1,3 +1,4 @@
+import { showWebExportDialog } from '../editor/webExportDialog.js';
 import '../player/player.css';
 import '../appChrome.css';
 import '../editor/editor.css';
@@ -60,7 +61,7 @@ import { setRenderInvariantChecks } from '../editor/renderInvariants.js';
 import { setSelectionInvariantChecks } from '../editor/selectionInvariants.js';
 import { trackPreviewFrameRecovery } from '../player/previewFrameRecovery.js';
 import { trackVideoLoading } from '../player/videoLoadingProgress.js';
-import { DelayedOperationProgress } from '../editor/operationProgress.js';
+import { DelayedOperationProgress, type OperationHandle } from '../editor/operationProgress.js';
 import { DesignWorkspace } from '../editor/designWorkspace.js';
 import { installResponsiveToolbar } from '../editor/responsiveToolbar.js';
 
@@ -196,10 +197,10 @@ const operationProgress = new DelayedOperationProgress(({ message, busy }) => {
   renderStatus();
 });
 
-async function runOperation<T>(message: string, action: () => Promise<T>): Promise<T> {
+async function runOperation<T>(message: string, action: (operation: OperationHandle) => Promise<T>): Promise<T> {
   const operation = operationProgress.begin(message);
   try {
-    return await action();
+    return await action(operation);
   } finally {
     operation.finish();
   }
@@ -759,6 +760,47 @@ async function exportWeb(): Promise<void> {
   setStatusMessage('Building the web export — the download starts when the server is done.');
 }
 
+async function exportSingleHtml(): Promise<void> {
+  const choice = await showWebExportDialog(true);
+  if (!choice) return;
+  try {
+    await runOperation('Preparing HTML export…', async (operation) => {
+      operation.update(`Embedding the player and media for ${store.get().deck.title}`);
+      const query = new URLSearchParams({ deck: deckId!, format: 'html', quality: choice.quality });
+      const response = await fetch(`/api/export/web?${query}`);
+      if (!response.ok) {
+        const detail = await response.json().catch(() => null) as { error?: string } | null;
+        throw new Error(detail?.error ?? `HTTP ${response.status}`);
+      }
+      operation.update(`Downloading ${deckId}.html`);
+      const total = Number(response.headers.get('content-length'));
+      const reader = response.body?.getReader();
+      let blob: Blob;
+      if (reader) {
+        const chunks: BlobPart[] = [];
+        let received = 0;
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          chunks.push(value);
+          received += value.byteLength;
+          operation.update(`Downloading ${deckId}.html`, total > 0 ? received / total : null);
+        }
+        blob = new Blob(chunks, { type: 'text/html' });
+      } else blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${deckId!.split('/').pop()}.html`;
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 10_000);
+    });
+    setStatusMessage('HTML export downloaded.');
+  } catch (error) {
+    setStatusMessage(`HTML export failed: ${error instanceof Error ? error.message : error}`);
+  }
+}
+
 /* --- renaming the open deck -------------------------------------------------- */
 
 let deckNameField: DeckNameField | null = null;
@@ -922,6 +964,7 @@ function buildToolbar(): void {
       options: [
         { label: 'PDF…', action: () => void exportPdf() },
         { label: 'Web…', action: () => void exportWeb() },
+        { label: 'Single HTML…', action: () => void exportSingleHtml() },
       ],
     },
   ];
@@ -935,6 +978,7 @@ function buildToolbar(): void {
       },
       { label: 'Export PDF…', action: () => void exportPdf() },
       { label: 'Export Web…', action: () => void exportWeb() },
+      { label: 'Export Single HTML…', action: () => void exportSingleHtml() },
     ],
   });
   const compactFile = createToolbarPicker('File', compactFileEntries, { deckOnly: true });

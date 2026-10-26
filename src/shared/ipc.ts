@@ -50,6 +50,7 @@ export const IPC = {
   keynoteImport: 'keynote:import',
   pptxImport: 'pptx:import',
   exportBundle: 'export:bundle',
+  exportSingleHtml: 'export:singleHtml',
   exportPdf: 'export:pdf',
   exportPdfReady: 'export:pdfReady',
   operationProgress: 'operation:progress',

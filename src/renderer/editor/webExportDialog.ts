@@ -27,7 +27,7 @@ const QUALITIES: Array<{ value: WebExportQuality; label: string; detail: string 
 const STORAGE_KEY = 'deckwerk.webExport.quality';
 
 /** Ask how much to compress the media before choosing where the export goes. */
-export function showWebExportDialog(): Promise<WebExportChoice | null> {
+export function showWebExportDialog(singleHtml = false): Promise<WebExportChoice | null> {
   return new Promise((resolve) => {
     const overlay = document.createElement('div');
     overlay.className = 'workflow-overlay';
@@ -40,7 +40,7 @@ export function showWebExportDialog(): Promise<WebExportChoice | null> {
 
     const title = document.createElement('h2');
     title.id = 'web-export-title';
-    title.textContent = 'Export for the web';
+    title.textContent = singleHtml ? 'Export as a single HTML file' : 'Export for the web';
 
     const field = document.createElement('label');
     field.className = 'field web-export-quality';
@@ -50,7 +50,7 @@ export function showWebExportDialog(): Promise<WebExportChoice | null> {
     for (const option of QUALITIES) {
       const node = document.createElement('option');
       node.value = option.value;
-      node.textContent = option.label;
+      node.textContent = singleHtml ? option.label.replace('folder', 'file') : option.label;
       select.appendChild(node);
     }
     select.value = rememberedQuality();
@@ -59,7 +59,9 @@ export function showWebExportDialog(): Promise<WebExportChoice | null> {
     const detail = document.createElement('p');
     detail.className = 'web-export-detail';
     const describe = (): void => {
-      detail.textContent = QUALITIES.find((q) => q.value === select.value)?.detail ?? '';
+      const description = QUALITIES.find((q) => q.value === select.value)?.detail ?? '';
+      detail.textContent = singleHtml ? description.replace(/folder/g, 'file')
+        + ' The player, styles and media are embedded in one HTML file.' : description;
     };
     describe();
     select.addEventListener('change', describe);
