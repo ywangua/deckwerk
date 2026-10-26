@@ -75,7 +75,7 @@ it('embeds encoded asset paths while preserving fragment references in the deck'
   deck.slides[0].elements.push({
     id: 'picture', type: 'image', x: 0, y: 0, w: 100, h: 100, rot: 0, z: 1,
     opacity: 1, class: [], style: {}, src: 'assets/picture%20name.png#sample',
-    fit: 'contain', alt: '',
+    fit: 'contain', alt: '', sourceBox: null,
   });
   const target = join(dir, 'talk.html');
   await exportDeckHtml(dir, deck, target, undefined, { playerBundleDir: join(dir, 'player') });
