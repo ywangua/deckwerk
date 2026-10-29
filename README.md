@@ -1,3 +1,13 @@
+Note: this is a fork of DeckWerk (v0.2.3) by Vincent Sitzmann with various modifications. This is a personal version, not following the further development of the original DeckWerk.
+* Added feature: code-role for syntax highlighting
+* Added feature: insert/remove/update slide numebrs
+* Added feature: F2 to add a text box around the cursor position
+
+
+
+The original readme.md is shown below.
+
+--------------------------------------
 # DeckWerk
 
 **DeckWerk is an opinionated cross-platform what-you-see-is-what-you-get slide editor by Vincent Sitzmann.**
