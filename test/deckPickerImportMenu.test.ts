@@ -130,7 +130,7 @@ describe('deck picker import menu', () => {
     showDeckPicker({ dismissable: true, onStatus: () => {}, access: ACCESS, folder: '' });
 
     expect([...openImportMenu().keys()]).toEqual([
-      'Keynote…', 'PowerPoint…', 'DeckWerk deck folder…', 'DeckWerk deck archive (.zip)…',
+      'Keynote…', 'PowerPoint…', 'DeckWerk deck folder…', 'DeckWerk presentation (.dw)…',
     ]);
     // The flat per-format buttons are gone from the footer.
     const buttons = [...document.querySelectorAll('.workflow-actions > button')].map((b) => b.textContent);
@@ -216,7 +216,7 @@ describe('deck picker import menu', () => {
 
   it('shows why an import failed, where the dialog can be seen', async () => {
     showDeckPicker({ dismissable: true, onStatus: () => {}, access: ACCESS, folder: '' });
-    openImportMenu().get('DeckWerk deck archive (.zip)…')!.click();
+    openImportMenu().get('DeckWerk presentation (.dw)…')!.click();
 
     const input = clicked.at(-1)!;
     const file = new File(['not a zip'], 'talk.zip');
@@ -235,16 +235,16 @@ describe('deck picker import menu', () => {
     // would be a second, inconsistent answer to the same question.
     showDeckPicker({ dismissable: true, onStatus: () => {}, access: ACCESS, folder: 'conferences' });
 
-    openImportMenu().get('DeckWerk deck archive (.zip)…')!.click();
+    openImportMenu().get('DeckWerk presentation (.dw)…')!.click();
 
     const input = clicked.at(-1)!;
-    expect(input.accept).toBe('.zip');
-    const file = new File(['zip bytes'], 'My Talk.zip');
+    expect(input.accept).toBe('.dw,.zip');
+    const file = new File(['zip bytes'], 'My Talk.dw');
     Object.defineProperty(input, 'files', { value: [file] });
     input.dispatchEvent(new Event('change'));
     await vi.waitFor(() => expect(uploadCall()).toBeDefined());
 
-    // The .zip suffix is dropped from the deck name and the folder rides
+    // The .dw suffix is dropped from the deck name and the folder rides
     // along; nothing in the request says anything about access.
     expect(uploadCall()).toBe('/api/import-deck?name=My%20Talk&folder=conferences');
   });

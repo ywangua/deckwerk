@@ -1,7 +1,8 @@
 import { existsSync, mkdirSync, watch } from 'node:fs';
-import { writeFile } from 'node:fs/promises';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
-import { userInfo } from 'node:os';
+import { tmpdir, userInfo } from 'node:os';
 import { basename, dirname, extname, join, resolve, sep } from 'node:path';
 import { BrowserWindow, app, clipboard, ipcMain, screen, shell } from 'electron';
 import type { Display, IpcMainInvokeEvent, WebContents } from 'electron';
@@ -49,7 +50,6 @@ import type {
 } from '@shared/ipc.js';
 import { installAssetProtocol, registerAssetScheme } from './assetProtocol.js';
 import {
-  createDeck,
   deckFolderPath,
   copyDeck,
   derivedAssetPath,
@@ -65,6 +65,9 @@ import {
   serializeDeck,
   saveTheme,
 } from './deckStore.js';
+import { DwDocuments } from './dwDocuments.js';
+import { dwFilePath } from './dwArchive.js';
+import { documentFilePath } from './documentPersistence.js';
 import { exportDeck, exportDeckHtml } from './exportDeck.js';
 import { writeExportThumbnail } from './exportThumbnail.js';
 import { probeMedia, runTrim } from './ffmpeg.js';
@@ -148,6 +151,41 @@ let collabMode: 'window' | 'agent-background' | 'collaboration-background' | nul
 let collabOwner: DeckWindowState | null = null;
 let agentSessionReturn: Promise<void> | null = null;
 let quitting = false;
+let dwDocuments: DwDocuments;
+const closingDocuments = new WeakSet<DeckWindowState>();
+const pendingCloses = new Set<DeckWindowState>();
+const dwFilters = [{ name: 'DeckWerk presentation', extensions: ['dw'] }];
+let pendingOpenFile: string | null = null;
+app.on('open-file', (event, path) => {
+  event.preventDefault();
+  if (!app.isReady() || !dwDocuments) { pendingOpenFile = path; return; }
+  openFileWindow(path);
+});
+function openFileWindow(path: string, state?: DeckWindowState): void {
+  const existing = editorStates().find((owner) => owner.session?.filePath === resolve(path)) ?? stateForDeckDir(path);
+  if (existing) {
+    if (existing.editor.isMinimized()) existing.editor.restore();
+    existing.editor.focus();
+    return;
+  }
+  const target = state ?? editorStates().find(isEmptyEditor) ?? createEditorState();
+  const send = () => target.editor.webContents.send(IPC.deckOpenFile, path);
+  if (target.editor.webContents.isLoading()) target.editor.webContents.once('did-finish-load', send);
+  else send();
+}
+// Desktop file associations should route to the running app, which already owns its documents.
+if (!app.requestSingleInstanceLock()) app.quit();
+app.on('second-instance', (_event, argv, workingDirectory) => {
+  const path = deckPathFromArgs(argv, workingDirectory);
+  if (path) {
+    if (app.isReady() && dwDocuments) openFileWindow(path);
+    else pendingOpenFile = path;
+  } else {
+    const editor = editorStates()[0]?.editor;
+    if (editor?.isMinimized()) editor.restore();
+    editor?.focus();
+  }
+});
 const localAgents = new LocalAgentRegistry();
 let desktopAgentParticipantId: string | null = null;
 
@@ -316,7 +354,9 @@ function endBackgroundAgentSession(): Promise<void> {
 
 /** Give a window a document, and tell it which deck its assets now come from. */
 function setSession(state: DeckWindowState, dir: string, deck: Deck): DeckSession {
-  const session: DeckSession = { dir, deck };
+  const filePath = documentFilePath(dir);
+  const session: DeckSession = { dir, deck, ...(filePath ? { filePath } : {}) };
+  state.editor.setRepresentedFilename(filePath ?? '');
   state.session = session;
   state.themeCss = null;
   state.lastSavedDeckJson = null;
@@ -396,8 +436,33 @@ function createEditorState(query = '', bounds?: WindowContinuityState): DeckWind
   const win = createEditorWindow(query, bounds);
   const state = registerEditorWindow(win);
   attachRendererHealth(win);
+  win.on('close', (event) => {
+    if (!state.session || !documentFilePath(state.session.dir) || closingDocuments.has(state)) return;
+    event.preventDefault();
+    if (pendingCloses.has(state)) return;
+    pendingCloses.add(state);
+    if (win.webContents.isCrashed()) void finishArchiveClose(state);
+    else win.webContents.send(IPC.deckCloseRequest);
+  });
+  win.webContents.on('render-process-gone', () => pendingCloses.delete(state));
   win.on('closed', () => closeDocument(state));
   return state;
+}
+
+/** Only close an archived document once both renderer and filesystem work have landed. */
+async function finishArchiveClose(state: DeckWindowState, rendererError?: string): Promise<void> {
+  try {
+    if (rendererError) throw new Error(rendererError);
+    if (collabOwner === state) await endBackgroundAgentSession();
+    await state.agentRuntime.close();
+    if (state.session) await dwDocuments.close(state.session.dir);
+    closingDocuments.add(state);
+    state.editor.close();
+  } catch (error) {
+    if (!state.editor.isDestroyed()) {
+      state.editor.webContents.send(IPC.deckPersistenceError, `Could not close presentation: ${String(error)}`);
+    }
+  } finally { pendingCloses.delete(state); }
 }
 
 /**
@@ -560,11 +625,13 @@ function broadcastDeck(state: DeckWindowState, except?: BrowserWindow | null): v
  * A deck folder named on the command line, if any. Used by `npm run dev -- <dir>`
  * and by opening a deck from the shell.
  */
-function deckDirFromArgv(): string | null {
-  const args = process.argv.slice(app.isPackaged ? 1 : 2);
+function deckPathFromArgs(args: string[], cwd = process.cwd()): string | null {
   for (const arg of args) {
     if (arg.startsWith('-')) continue;
-    if (existsSync(join(arg, 'deck.json'))) return resolve(arg);
+    let path: string;
+    try { path = arg.startsWith('file://') ? fileURLToPath(arg) : resolve(cwd, arg); }
+    catch { continue; }
+    if (existsSync(join(path, 'deck.json')) || (path.toLowerCase().endsWith('.dw') && existsSync(path))) return path;
   }
   return null;
 }
@@ -596,21 +663,17 @@ app.whenReady().then(async () => {
     if (existsSync(developmentIcon)) app.dock.setIcon(developmentIcon);
   }
 
+  dwDocuments = new DwDocuments(join(app.getPath('userData'), 'documents'), (dir, error) => {
+    const state = stateForDeckDir(dir);
+    state?.editor.webContents.send(IPC.deckPersistenceError, `Could not save .dw presentation: ${String(error)}`);
+  });
   installAssetProtocol();
   registerHandlers();
 
-  const initial = deckDirFromArgv();
-  const deck = initial
-    ? await loadDeck(initial).catch((err: unknown) => {
-      console.error(`Could not open ${initial}:`, err);
-      return null;
-    })
-    : null;
-
-  // The window exists before the deck is attached, so the document belongs to
-  // it from the start rather than being adopted from anything app-wide.
+  const initial = pendingOpenFile ?? deckPathFromArgs(process.argv.slice(app.isPackaged ? 1 : 2));
+  pendingOpenFile = null;
   const first = createEditorState();
-  if (initial && deck) setSession(first, initial, deck);
+  if (initial) openFileWindow(initial, first);
 
   screen.on('display-removed', () => {
     const primary = screen.getPrimaryDisplay();
@@ -644,39 +707,39 @@ app.on('before-quit', () => {
   quitting = true;
   for (const state of editorStates()) void state.agentRuntime.close();
   localAgents.close();
-  void collabServer?.close();
+  // Archived documents flush their hosted session in the window-close handshake.
+  if (!collabOwner?.session || !documentFilePath(collabOwner.session.dir)) void collabServer?.close();
 });
 
 function registerHandlers(): void {
   ipcMain.handle(IPC.deckNew, async (event, operationId?: string): Promise<DeckSession | null> => {
     const res = await showSaveDialog({
-      title: 'New deck',
-      buttonLabel: 'Create',
-      // A deck is a folder, so the dialog names a directory to create.
-      properties: ['createDirectory'],
-      defaultPath: 'Untitled deck',
+      title: 'New presentation', buttonLabel: 'Create', defaultPath: 'Untitled.dw', filters: dwFilters,
     });
     if (res.canceled || !res.filePath) return null;
-    // The panel hands back whatever is in its name field, so a stray `.key`
-    // from the surrounding folder must not become the folder name or title.
-    const dir = deckFolderPath(res.filePath);
-    reportOperation(event, operationId, `Creating ${basename(dir)}/deck.json`);
-    const deck = await createDeck(dir, basename(dir));
-    reportOperation(event, operationId, 'Preparing the new presentation', 1);
-    return openDeckForRequester(requireOwner(event), dir, deck, event);
+    reportOperation(event, operationId, `Creating ${basename(dwFilePath(res.filePath))}`);
+    const session = await dwDocuments.create(res.filePath, undefined, (message, ratio) => reportOperation(event, operationId, message, ratio * 0.4));
+    reportOperation(event, operationId, 'Preparing the new presentation', 0.8);
+    return openDeckForRequester(requireOwner(event), session.dir, session.deck, event);
   });
 
-  ipcMain.handle(IPC.deckOpen, async (event, operationId?: string): Promise<DeckSession | null> => {
+  ipcMain.handle(IPC.deckOpen, async (event, operationId?: string, folder = false): Promise<DeckSession | null> => {
     const res = await showOpenDialog({
-      title: 'Open deck',
-      properties: ['openDirectory'],
+      title: folder ? 'Open project folder' : 'Open presentation',
+      properties: folder ? ['openDirectory'] : ['openFile'],
+      ...(folder ? {} : { filters: dwFilters }),
     });
     if (res.canceled || res.filePaths.length === 0) return null;
-    const dir = res.filePaths[0];
-    reportOperation(event, operationId, `Reading ${basename(dir)}/deck.json`);
-    const deck = await loadDeck(dir);
-    reportOperation(event, operationId, 'Preparing deck files', 0.4);
-    return openDeckForRequester(requireOwner(event), dir, deck, event);
+    reportOperation(event, operationId, `Reading ${basename(res.filePaths[0])}`);
+    const session = await dwDocuments.open(res.filePaths[0], (message, ratio) => reportOperation(event, operationId, message, ratio * 0.4));
+    reportOperation(event, operationId, 'Preparing presentation files', 0.4);
+    return openDeckForRequester(requireOwner(event), session.dir, session.deck, event);
+  });
+
+  ipcMain.on(IPC.deckCloseReady, (event, error?: string) => {
+    const state = requireOwner(event);
+    if (!pendingCloses.has(state)) return;
+    void finishArchiveClose(state, error);
   });
 
   // Pull rather than push: a window that opens mid-session asks for its own
@@ -717,8 +780,10 @@ function registerHandlers(): void {
 
   ipcMain.handle(
     IPC.deckOpenPath,
-    async (event, dir: string): Promise<DeckSession | null> =>
-      openDeckForRequester(requireOwner(event), dir, await loadDeck(dir), event),
+    async (event, path: string): Promise<DeckSession | null> => {
+      const session = await dwDocuments.open(path);
+      return openDeckForRequester(requireOwner(event), session.dir, session.deck, event);
+    },
   );
 
   ipcMain.handle(IPC.deckSave, async (event, dir: string, deck: Deck): Promise<void> => {
@@ -763,22 +828,25 @@ function registerHandlers(): void {
     }
   });
 
-  ipcMain.handle(IPC.deckSaveAs, async (event, operationId?: string): Promise<DeckSession | null> => {
+  ipcMain.handle(IPC.deckSaveAs, async (event, operationId?: string, folder = false): Promise<DeckSession | null> => {
     const s = requireSession(event);
     const target = await showSaveDialog({
-      title: 'Save deck as',
-      buttonLabel: 'Save As',
-      defaultPath: basename(s.dir),
-      properties: ['createDirectory'],
+      title: folder ? 'Save as project folder' : 'Save presentation as', buttonLabel: 'Save As',
+      defaultPath: folder ? basename(s.dir) : (s.filePath ?? `${basename(s.dir)}.dw`),
+      ...(folder ? { properties: ['createDirectory' as const] } : { filters: dwFilters }),
     });
     if (target.canceled || !target.filePath) return null;
-    const dir = deckFolderPath(target.filePath);
-
-    reportOperation(event, operationId, `Copying deck to ${basename(dir)}`);
-    const deck = await copyDeck(s.dir, dir);
-    reportOperation(event, operationId, 'Opening the saved copy', 0.8);
-    // Save As continues one document in one window, so it never spawns another.
-    return openSession(requireOwner(event), dir, deck, event);
+    reportOperation(event, operationId, `Saving ${basename(target.filePath)}`);
+    if (!folder && s.filePath && resolve(dwFilePath(target.filePath)) === s.filePath) {
+      await dwDocuments.flush(s.dir);
+      return s;
+    }
+    const saved = folder
+      ? { dir: target.filePath, deck: await copyDeck(s.dir, target.filePath) }
+      : await dwDocuments.create(target.filePath, s.dir, (message, ratio) => reportOperation(event, operationId, message, ratio * 0.5));
+    // The new copy is committed; release the old document even if it had a save conflict.
+    await dwDocuments.close(s.dir, false);
+    return openSession(requireOwner(event), saved.dir, saved.deck, event);
   });
 
   ipcMain.handle(IPC.deckLoadTheme, async (event): Promise<string> => {
@@ -1185,8 +1253,8 @@ function registerHandlers(): void {
     const target = await showSaveDialog({
       title: 'Save the imported deck as',
       buttonLabel: 'Import',
-      defaultPath: basename(sourcePath, extname(sourcePath)),
-      properties: ['createDirectory'],
+      defaultPath: `${basename(sourcePath, extname(sourcePath))}.dw`,
+      filters: dwFilters,
     });
     if (target.canceled || !target.filePath) return null;
 
@@ -1194,10 +1262,17 @@ function registerHandlers(): void {
     // `adopt` then reports the rest of the way. Compress the conversion into
     // the first half so the operation's completion only ever moves forward.
     const conversionShare = 0.5;
-    const result = await source.run(sourcePath, deckFolderPath(target.filePath), (message, ratio) => {
-      reportOperation(event, operationId, message, ratio === null ? null : ratio * conversionShare);
-    });
-    reportOperation(event, operationId, 'Opening the imported presentation', conversionShare);
+    const staging = await mkdtemp(join(tmpdir(), 'deckwerk-import-'));
+    let result: Awaited<ReturnType<typeof source.run>>;
+    try {
+      const imported = await source.run(sourcePath, join(staging, 'presentation'), (message, ratio) => {
+        reportOperation(event, operationId, message, ratio === null ? null : ratio * conversionShare);
+      });
+      reportOperation(event, operationId, `Writing ${basename(dwFilePath(target.filePath))}`, conversionShare);
+      const saved = await dwDocuments.create(target.filePath, imported.dir, (message, ratio) => reportOperation(event, operationId, message, conversionShare + ratio * 0.05));
+      result = { ...imported, ...saved };
+    } finally { await rm(staging, { recursive: true, force: true }); }
+    reportOperation(event, operationId, 'Opening the imported presentation', 0.55);
     const adopted = openDeckForRequester(requireOwner(event), result.dir, result.deck, event);
     // A window that already held a presentation keeps it; the import went to
     // a window of its own, so the asking renderer must not adopt the deck.

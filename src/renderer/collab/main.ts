@@ -951,12 +951,12 @@ function buildToolbar(): void {
   const downloadDeck = (): void => {
     const link = document.createElement('a');
     link.href = `/api/download?deck=${encodeURIComponent(deckId!)}`;
-    link.download = `${deckId}.zip`;
+    link.download = `${deckId}.dw`;
     link.click();
   };
   const saveEntries: ToolbarPickerEntry[] = [
     {
-      label: 'Deck archive (.zip)…',
+      label: 'DeckWerk presentation (.dw)…',
       action: downloadDeck,
     },
     {
@@ -973,7 +973,7 @@ function buildToolbar(): void {
     label: 'Save and export',
     options: [
       {
-        label: 'Deck archive (.zip)…',
+        label: 'DeckWerk presentation (.dw)…',
         action: downloadDeck,
       },
       { label: 'Export PDF…', action: () => void exportPdf() },

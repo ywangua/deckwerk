@@ -2,14 +2,17 @@ import { CODE_LANGUAGES, type CodeLanguage } from '../src/shared/codeLanguages.j
 import { afterEach, describe, expect, it } from 'vitest';
 import { existsSync } from 'node:fs';
 import { appendFile, readFile, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { Worker } from 'node:worker_threads';
+import { extractDwArchive } from '../src/main/dwArchive.js';
+import { loadDeck } from '../src/main/deckStore.js';
 import { validateDeckIntegrity } from '../src/shared/agent.js';
 import { sameSlideContent } from '../src/shared/htmlSlides.js';
 import type { Deck, Slide } from '../src/shared/deck.js';
 import { electronBinary } from './support/browserSession.js';
 import {
   hostedWorkspace,
+  desktopWorkspace,
   sectionIds,
   startWorkspace,
   until,
@@ -124,6 +127,23 @@ const sections = (page: string): string[] =>
   [...page.matchAll(/<section\b[^>]*>[\s\S]*?<\/section>/g)].map((match) => match[0]);
 const withSections = (page: string, blocks: string[]): string =>
   page.replace(/<body>[\s\S]*<\/body>/, `<body>\n${blocks.join('\n')}\n</body>`);
+
+it('commits the live agent HTML loop into a .dw archive', { timeout: 120_000 }, async () => {
+  const workspace = ws = await desktopWorkspace(undefined, true);
+  const before = await workspace.deck();
+  const page = (await exportPage(workspace, 'review')).replace('Review body text', 'Review body text, saved in an archive');
+  await workspace.write('work.html', page);
+  const result = landed(await apply(workspace, 'work.html'), workspace);
+  expect(result.changes.replaced).toEqual(['review']);
+  const extracted = join(dirname(workspace.archivePath!), 'archive-check');
+  // The agent's success reply means the durable document, including its media, is saved.
+  await extractDwArchive(workspace.archivePath!, extracted);
+  const saved = await loadDeck(extracted);
+  expect(plainText(slideById(saved, 'review'))).toContain('Review body text, saved in an archive');
+  expect(slideById(saved, 'review').notes).toBe(slideById(before, 'review').notes);
+  expect(await readFile(join(extracted, 'assets', 'clip.mp4'))).toEqual(await readFile(join(workspace.dir, 'assets', 'clip.mp4')));
+  expect(sectionIds(await workspace.read('work.html'))).toEqual(['review']);
+});
 
 for (const kind of BACKENDS) describe.skipIf(!electronBinary)(`an agent working ${kind}`, { timeout: 240_000 }, () => {
   it('keeps Code source and language through export, untouched save and language edits', async () => {

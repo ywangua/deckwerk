@@ -2352,7 +2352,7 @@ export async function startCollabServer(options: CollabServerOptions): Promise<R
       response.writeHead(200, {
         'content-type': 'application/zip',
         'cache-control': 'no-store',
-        'content-disposition': `attachment; filename="${sanitizeFilename(deckParam)}.zip"`,
+        'content-disposition': `attachment; filename="${sanitizeFilename(deckParam)}.dw"`,
       });
       await writeZip(response, files);
       response.end();
@@ -4513,7 +4513,7 @@ function redirectToViewer(response: ServerResponse, url: URL): void {
 
 function sanitizeDeckId(name: string): string {
   return basename(name)
-    .replace(/\.(key|pptx|zip)$/i, '')
+    .replace(/\.(key|pptx|zip|dw)$/i, '')
     .replace(/[^a-zA-Z0-9._ -]+/g, '-')
     .replace(/^[.\s-]+|[\s-]+$/g, '')
     .slice(0, 80);

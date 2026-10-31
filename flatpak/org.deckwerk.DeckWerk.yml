@@ -55,6 +55,8 @@ modules:
         /app/share/applications/org.deckwerk.DeckWerk.desktop
       - install -Dm644 org.deckwerk.DeckWerk.metainfo.xml
         /app/share/metainfo/org.deckwerk.DeckWerk.metainfo.xml
+      - install -Dm644 org.deckwerk.DeckWerk.xml
+        /app/share/mime/packages/org.deckwerk.DeckWerk.xml
       # Must genuinely be 512x512: the icon-theme cache and Flathub's linter
       # both read the directory name as a claim about the file.
       - install -Dm644 org.deckwerk.DeckWerk.png
@@ -73,5 +75,7 @@ modules:
         path: ../packaging/linux/org.deckwerk.DeckWerk.desktop
       - type: file
         path: ../packaging/linux/org.deckwerk.DeckWerk.metainfo.xml
+      - type: file
+        path: ../packaging/linux/org.deckwerk.DeckWerk.xml
       - type: file
         path: ../packaging/linux/org.deckwerk.DeckWerk.png

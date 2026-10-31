@@ -70,8 +70,8 @@ const api = {
    */
   newDeck: (operationId?: string): Promise<DeckSession | null> =>
     ipcRenderer.invoke(IPC.deckNew, operationId),
-  openDeck: (operationId?: string): Promise<DeckSession | null> =>
-    ipcRenderer.invoke(IPC.deckOpen, operationId),
+  openDeck: (operationId?: string, folder = false): Promise<DeckSession | null> =>
+    ipcRenderer.invoke(IPC.deckOpen, operationId, folder),
   getDeck: (): Promise<DeckSession | null> => ipcRenderer.invoke(IPC.deckGet),
   /** Null when the deck went to a window of its own instead of this one. */
   openDeckPath: (dir: string): Promise<DeckSession | null> =>
@@ -80,8 +80,8 @@ const api = {
     ipcRenderer.invoke(IPC.deckSave, dir, deck),
   syncDeckSnapshot: (snapshot: DeckSessionSnapshot): Promise<void> =>
     ipcRenderer.invoke(IPC.deckSyncSnapshot, snapshot),
-  saveDeckAs: (operationId?: string): Promise<DeckSession | null> =>
-    ipcRenderer.invoke(IPC.deckSaveAs, operationId),
+  saveDeckAs: (operationId?: string, folder = false): Promise<DeckSession | null> =>
+    ipcRenderer.invoke(IPC.deckSaveAs, operationId, folder),
   loadDeckHistory: (dir: string): Promise<DeckHistorySession> =>
     ipcRenderer.invoke(IPC.deckHistoryLoad, dir),
   saveDeckHistory: (dir: string, history: DeckHistoryDocument): Promise<void> =>
@@ -202,6 +202,10 @@ const api = {
   assetUrl: (src: string): string =>
     `deck://${deckKey}/${src.replace(/^\/+/, '').split('/').map(encodeURIComponent).join('/')}`,
 
+  onOpenFile: (fn: (path: string) => void): (() => void) => on(IPC.deckOpenFile, fn),
+  onCloseRequest: (fn: () => void): (() => void) => on(IPC.deckCloseRequest, fn),
+  closeReady: (error?: string): void => ipcRenderer.send(IPC.deckCloseReady, error),
+  onPersistenceError: (fn: (error: string) => void): (() => void) => on(IPC.deckPersistenceError, fn),
   onDeckState: (fn: (s: DeckSession) => void): (() => void) =>
     on(IPC.deckState, fn),
   onThemeCss: (fn: (css: string) => void): (() => void) => on(IPC.themeCss, fn),

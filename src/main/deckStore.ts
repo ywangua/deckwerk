@@ -1,3 +1,4 @@
+import { persistDocument } from './documentPersistence.js';
 import { createHash, randomUUID } from 'node:crypto';
 import { createReadStream, existsSync, realpathSync, statSync } from 'node:fs';
 import { cp, mkdir, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises';
@@ -16,11 +17,12 @@ import { convertHeicToPng } from './heic.js';
 /**
  * Reading and writing deck folders.
  *
- * A deck is a directory, not a file: `deck.json` (content and geometry),
+ * The editor works in a directory: `deck.json` (content and geometry),
  * `theme.css` (typography and colour, hand-edited), `assets/` (media), and an
  * optional `agent-chats.json` and `deck-history-v2.json.gz` sidecars.
- * Keeping media as real files on disk rather than embedded data is what makes
- * video practical — a 200 MB clip is referenced, never copied into the document.
+ * `.dw` documents use an extracted working directory and commit it through
+ * documentPersistence. Media stays streamable on disk while the saved archive
+ * contains the whole presentation.
  */
 
 export const DECK_FILE = 'deck.json';
@@ -152,6 +154,7 @@ export async function saveDeck(dir: string, deck: Deck): Promise<string> {
     throw error;
   }
   await saveSpeakerNotes(dir, deck);
+  await persistDocument(dir);
   // Returned so the caller can recognise the watcher echo of this very write.
   return json;
 }
@@ -237,6 +240,7 @@ export async function saveTheme(
   css: string,
 ): Promise<void> {
   await writeFile(join(dir, theme), css, 'utf8');
+  await persistDocument(dir);
 }
 
 export function classifyMedia(path: string): 'image' | 'video' | null {

@@ -129,6 +129,7 @@ async function scriptDialogs(...answers: Array<Record<string, unknown>>): Promis
 interface EditorHandle {
   cdp: Cdp;
   dir: string | null;
+  filePath?: string;
   marker: string | null;
   /** The renderer has actually adopted the deck, so its deck-only UI is up. */
   ready: boolean;
@@ -171,6 +172,7 @@ async function openEditors(): Promise<EditorHandle[]> {
     const state = await cdp.evaluate<{ dir: string | null; marker: string | null; ready: boolean }>(`
         window.api.getDeck().then((session) => ({
           dir: session?.dir ?? null,
+          filePath: session?.filePath,
           marker: document.querySelector('#canvas [data-element-id="${MARKER_ID}"]')?.textContent ?? null,
           // The main process has the deck before the renderer has drawn it,
           // and the toolbar's deck-only controls -- Present among them -- are
@@ -190,7 +192,7 @@ async function editorShowing(dir: string, message: string): Promise<EditorHandle
   const found = await eventually<EditorHandle | null>(
     async () => {
       const handles = await openEditors();
-      return handles.find((handle) => handle.dir === dir && handle.ready) ?? null;
+      return handles.find((handle) => (handle.dir === dir || handle.filePath === `${dir}.dw`) && handle.ready) ?? null;
     },
     message,
     (value) => value !== null,
@@ -306,7 +308,7 @@ async function installImporterStub(appDir: string, outDir: string, deck: Deck): 
     `cp ${JSON.stringify(join(appDir, 'imported-deck.json'))} "$out/deck.json"`,
     `cp ${JSON.stringify(join(appDir, 'imported-theme.css'))} "$out/theme.css"`,
     'printf "@progress 0.5 Converting slides\\n" >&2',
-    `cat ${JSON.stringify(payload)}`,
+    `node -e 'const fs = require("node:fs"); const payload = JSON.parse(fs.readFileSync(process.argv[1], "utf8")); payload.dir = process.argv[2]; process.stdout.write(JSON.stringify(payload));' ${JSON.stringify(payload)} "$out"`,
     '',
   ].join('\n'), 'utf8');
   await chmod(stub, 0o755);
@@ -425,7 +427,7 @@ describe.skipIf(!runnable)('presenting with several presentations open', () => {
 
     const charlie = await editorShowing(charlieDir, 'the import did not open in a window');
     await markerOf(alpha, 'ALPHA DECK', 'the import replaced the deck the author was working on');
-    expect(await present(charlie)).toEqual({ marker: 'CHARLIE IMPORT', dir: charlieDir });
+    expect(await present(charlie)).toEqual({ marker: 'CHARLIE IMPORT', dir: charlie.dir });
   }, 90_000);
 
   it('creates a new presentation in a window of its own', async () => {
@@ -437,7 +439,7 @@ describe.skipIf(!runnable)('presenting with several presentations open', () => {
     const delta = await editorShowing(deltaDir, 'New did not open a window for the new deck');
     await markerOf(alpha, 'ALPHA DECK', 'New replaced the deck the author was working on');
     const presented = await present(delta);
-    expect(presented.dir).toBe(deltaDir);
+    expect(presented.dir).toBe(delta.dir);
     expect(presented.marker).toBe(null);
   }, 90_000);
 
@@ -567,7 +569,8 @@ describe.skipIf(!runnable)('presenting with several presentations open', () => {
     // place. Present, save a copy without closing the projector, then present
     // again: the window that is already up has to be showing the saved copy.
     const bravo = await editorShowing(bravoDir, 'the second deck is not open');
-    const savedDir = join(workDir, 'bravo-copy');
+    let savedDir = join(workDir, 'bravo-copy');
+    const savedFile = `${savedDir}.dw`;
     await closeAudienceWindows();
     await bravo.cdp.clickByText('button', 'Present', 'Present');
     const target = await findTarget(
@@ -586,12 +589,13 @@ describe.skipIf(!runnable)('presenting with several presentations open', () => {
       await bravo.cdp.clickByText('.shape-menu-item', 'Save As…', 'File → Save As…');
       await eventually(
         async () => bravo.cdp.evaluate<string | null>(
-          'window.api.getDeck().then((session) => session?.dir ?? null)',
+          'window.api.getDeck().then((session) => session?.filePath ?? null)',
         ),
         'the editor did not move to the saved copy',
-        (value) => value === savedDir,
+        (value) => value === savedFile,
         20_000,
       );
+      savedDir = await bravo.cdp.evaluate<string>('window.api.getDeck().then(session => session.dir)');
       await bravo.cdp.clickByText('button', 'Present', 'Present');
 
       const shown = await eventually(

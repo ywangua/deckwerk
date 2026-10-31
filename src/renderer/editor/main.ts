@@ -234,7 +234,7 @@ function queueAgentSessionSnapshot(): void {
 }
 const welcome = new WelcomeScreen(el('canvas'), {
   newPresentation,
-  openPresentation,
+  openPresentation: () => openPresentation(),
   importKeynote: importKeynotePresentation,
   importPowerPoint: importPowerPointPresentation,
 });
@@ -486,7 +486,8 @@ function buildToolbar(): void {
     { label: 'PowerPoint…', action: () => void importPowerPointPresentation() },
   ];
   const saveEntries = [
-    { label: 'Deck…', action: () => void saveAsPresentation() },
+    { label: 'DeckWerk presentation (.dw)…', action: () => void saveAsPresentation() },
+    { label: 'Project folder…', action: () => void saveAsPresentation(true) },
     {
       label: 'Lossy export',
       options: [
@@ -498,7 +499,8 @@ function buildToolbar(): void {
   ];
   fileActions.append(
     barButton('New', newPresentation),
-    barButton('Open', openPresentation),
+    barButton('Open', () => void openPresentation()),
+    createToolbarPicker('Open other…', [{ label: 'Project folder…', action: () => void openPresentation(true) }]),
     createToolbarPicker('Import…', importEntries),
     createToolbarPicker('Save As…', saveEntries, { deckOnly: true }),
   );
@@ -507,7 +509,8 @@ function buildToolbar(): void {
       label: 'Presentation',
       options: [
         { label: 'New', action: newPresentation },
-        { label: 'Open…', action: openPresentation },
+        { label: 'Open…', action: () => void openPresentation() },
+        { label: 'Open project folder…', action: () => void openPresentation(true) },
       ],
     },
     { label: 'Import', options: importEntries },
@@ -515,6 +518,7 @@ function buildToolbar(): void {
       label: 'Save and export',
       options: [
         { label: 'Save As…', action: () => void saveAsPresentation() },
+        { label: 'Save as project folder…', action: () => void saveAsPresentation(true) },
         { label: 'Export PDF…', action: () => void exportPdf() },
         { label: 'Export Web…', action: () => void exportWeb() },
         { label: 'Export Single HTML…', action: () => void exportWeb(true) },
@@ -957,10 +961,10 @@ async function newPresentation(): Promise<void> {
   }
 }
 
-async function openPresentation(): Promise<void> {
+async function openPresentation(folder = false): Promise<void> {
   try {
     await runOperation('Opening presentation…', async (operation) => {
-      const session = await window.api.openDeck(operation.id);
+      const session = await window.api.openDeck(operation.id, folder);
       if (session) await adopt(session.dir, session.deck, operation);
     });
   } catch (err) {
@@ -968,19 +972,24 @@ async function openPresentation(): Promise<void> {
   }
 }
 
-async function saveAsPresentation(): Promise<void> {
+async function saveAsPresentation(folder = false): Promise<void> {
   try {
     const session = await runOperation('Saving a copy…', async (operation) => {
       operation.update('Saving deck.json and theme.css');
-      await cssEditor.flush();
-      await save();
-      operation.update('Waiting for a destination folder');
-      const saved = await window.api.saveDeckAs(operation.id);
+      // A conflict with the old archive must still allow saving a safe copy.
+      canvas.endTextEditing();
+      const errors: unknown[] = [];
+      try { await cssEditor.flush(); } catch (error) { errors.push(error); }
+      try { await save(); } catch (error) { errors.push(error); }
+      const unsavedWorkingFile = errors.find((error) => !String(error).includes('Could not save .dw archive:'));
+      if (unsavedWorkingFile) throw unsavedWorkingFile;
+      operation.update('Waiting for a destination');
+      const saved = await window.api.saveDeckAs(operation.id, folder);
       if (saved) await adopt(saved.dir, saved.deck, operation);
       return saved;
     });
     if (!session) return;
-    setStatusMessage(`Saved as ${session.dir}`);
+    setStatusMessage(`Saved as ${session.filePath ?? session.dir}`);
   } catch (err) {
     setStatusMessage(`Save As failed: ${err instanceof Error ? err.message : err}`);
   }
@@ -1125,6 +1134,35 @@ function addText(): void {
 /* --- persistence --- */
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
+window.api.onOpenFile?.((path) => {
+  void runOperation('Opening presentation…', async (operation) => {
+    operation.update(`Reading ${path.split(/[\\/]/).pop() ?? path}`);
+    const session = await window.api.openDeckPath(path);
+    if (session) await adopt(session.dir, session.deck, operation);
+  }).catch((error) => setStatusMessage(`Open failed: ${String(error)}`));
+});
+let closeOperation: OperationHandle | null = null;
+window.api.onPersistenceError?.((error) => {
+  closeOperation?.finish();
+  closeOperation = null;
+  setStatusMessage(error);
+});
+window.api.onCloseRequest?.(() => {
+  // Keep the shared activity indicator until main has flushed the archive and
+  // collaboration session too. On success the window disappears; failure clears it above.
+  closeOperation = operationProgress.begin('Saving presentation…');
+  closeOperation.update('Saving pending edits and presentation files');
+  void (async () => {
+    canvas.endTextEditing();
+    await cssEditor.flush();
+    await save();
+    window.api.closeReady();
+  })().catch((error) => {
+    closeOperation?.finish();
+    closeOperation = null;
+    window.api.closeReady(String(error));
+  });
+});
 
 async function save(opts: { flushHistory?: boolean } = {}): Promise<void> {
   const dir = store.get().dir;
@@ -1163,7 +1201,7 @@ function scheduleSave(): void {
   if (saveTimer) clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
     saveTimer = null;
-    void save({ flushHistory: false });
+    void save({ flushHistory: false }).catch((error) => setStatusMessage(`Save failed: ${String(error)}`));
   }, 800);
 }
 
@@ -1233,7 +1271,12 @@ const shellDeps: ShellDeps = {
   store,
   canvas,
   rail,
-  save,
+  save: () => runOperation('Saving presentation…', async (operation) => {
+    operation.update(`Saving ${store.get().deck.title}`);
+    canvas.endTextEditing();
+    await cssEditor.flush();
+    await save();
+  }),
   setStatusMessage,
   runOperation: (message, action) => runOperation(message, async () => action()),
   currentThemeCss: () => cssEditor.getValue(),

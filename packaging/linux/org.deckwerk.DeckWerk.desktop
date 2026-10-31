@@ -7,6 +7,7 @@ Exec=deckwerk %U
 Icon=org.deckwerk.DeckWerk
 Terminal=false
 Categories=Office;Presentation;
+MimeType=application/x-deckwerk;
 Keywords=slides;presentation;deck;talk;keynote;
 StartupNotify=true
 StartupWMClass=DeckWerk

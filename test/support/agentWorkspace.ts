@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { build } from 'vite';
 import WebSocket from 'ws';
+import { writeDwArchive } from '../../src/main/dwArchive.js';
 import { loadDeck, saveDeck } from '../../src/main/deckStore.js';
 import { getFfmpegPath } from '../../src/main/ffmpeg.js';
 import { parseDeck, type Deck } from '../../src/shared/deck.js';
@@ -61,6 +62,8 @@ export interface AgentWorkspace {
   dir: string;
   /** Where the deck itself lives (for a hosted deck, on the server). */
   deckDir: string;
+  /** Desktop archive backing the working folder, when the fixture opens .dw. */
+  archivePath?: string;
   /** `slide-agent <command> …` in the deck folder, or `./deck <command> …` in the mirror. */
   run(...args: string[]): Promise<CommandResult>;
   /** The authoritative deck: the editor's, the server's, or the one on disk. */
@@ -338,9 +341,10 @@ export async function offlineWorkspace(deck: Deck = agentFixtureDeck()): Promise
  * context to a runtime directory this process shares (DECKWERK_STATE_DIR), so
  * the in-process CLI finds the editor exactly as an agent's shell would.
  */
-export async function desktopWorkspace(deck: Deck = agentFixtureDeck()): Promise<AgentWorkspace> {
+export async function desktopWorkspace(deck: Deck = agentFixtureDeck(), archive = false): Promise<AgentWorkspace> {
   const root = await mkdtemp(join(tmpdir(), 'agent-desktop-'));
-  const dir = join(root, 'talk');
+  let dir = join(root, 'talk');
+  const archivePath = archive ? join(root, 'talk.dw') : undefined;
   const appDir = join(root, 'app');
   const profileDir = join(root, 'profile');
   const stateDir = join(root, 'state');
@@ -352,16 +356,22 @@ export async function desktopWorkspace(deck: Deck = agentFixtureDeck()): Promise
   await materializeDesktopApp(appDir, 'deckwerk-agent-collab-test');
   const previousState = process.env.DECKWERK_STATE_DIR;
   process.env.DECKWERK_STATE_DIR = stateDir;
-  const app = await launchDesktopApp(appDir, [dir], { profileDir, env: { DECKWERK_STATE_DIR: stateDir } });
+  if (archivePath) await writeDwArchive(dir, archivePath);
+  const app = await launchDesktopApp(appDir, [archivePath ?? dir], { profileDir, env: { DECKWERK_STATE_DIR: stateDir } });
   const target = await findTarget(app.debugPort, isEditorTarget, app.log, 30_000);
   const cdp = await Cdp.connect(target.webSocketDebuggerUrl!);
-  const session = async (): Promise<{ dir: string; deck: Deck } | null> =>
+  const session = async (): Promise<{ dir: string; filePath?: string; deck: Deck } | null> =>
     cdp.evaluate('window.api.getDeck()');
-  await until(async () => (await session())?.dir === dir, 'the desktop editor to open the deck', 60_000);
+  await until(async () => {
+    const opened = await session();
+    if (archivePath && opened?.filePath === archivePath) { dir = opened.dir; return true; }
+    return !archivePath && opened?.dir === dir;
+  }, 'the desktop editor to open the deck', 60_000);
   // The CLI addresses the live editor only once it has published its context.
   await until(async () => (await cliIn(dir, ['context'])).json?.live === true, 'the editor to publish its live context', 60_000);
   return {
     kind: 'desktop',
+    archivePath,
     dir,
     deckDir: dir,
     run: (...args) => cliIn(dir, args),

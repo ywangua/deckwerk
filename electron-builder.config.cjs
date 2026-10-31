@@ -35,6 +35,7 @@ const winSigned = Boolean(
 module.exports = {
   appId: 'org.deckwerk.DeckWerk',
   productName: 'DeckWerk',
+  fileAssociations: [{ ext: 'dw', name: 'DeckWerk Presentation', role: 'Editor', mimeType: 'application/x-deckwerk' }],
   copyright: `Copyright © ${YEAR} Vincent Sitzmann`,
 
   // Installers land in release/, not the default dist/ — dist/collab is an

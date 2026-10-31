@@ -1,4 +1,5 @@
 Note: this is a fork of DeckWerk (v0.2.3) by Vincent Sitzmann with various modifications. This is a personal version, not following the further development of the original DeckWerk.
+* Version 0.4.0: presentations save as a single `.dw` file (a ZIP archive containing the project and its media). Open `.dw` files with Open; existing projects remain available through File → Open project folder. Save As defaults to `.dw`, with a project-folder option for workflows that need it.
 * Added feature: code-role for syntax highlighting
 * Added feature: insert/remove/update slide numebrs
 * Added feature: F2 to add a text box around the cursor position
@@ -171,7 +172,9 @@ DeckWerk is particularly suited to:
 
 ## File format
 
-DeckWerk presentations are stored locally as folders containing the presentation and its media. Videos remain ordinary video files and images remain ordinary image files.
+DeckWerk 0.4.0 saves presentations as `.dw` files by default. Each file is a standard ZIP archive containing `deck.json`, the theme, notes, media, and edit history. Open it directly in DeckWerk or unzip it to inspect the project.
+
+The editor keeps a recoverable working folder so videos can stream and agents can edit ordinary HTML and media files. Changes are saved back into the `.dw` file automatically. Existing project folders can still be opened with **File → Open project folder**, and **File → Save as project folder** saves an unpacked copy.
 
 A talk does not need to be uploaded to a service before it can be edited, presented, shared, or archived.
 

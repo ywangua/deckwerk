@@ -13,6 +13,10 @@ export const IPC = {
   deckOpenPath: 'deck:openPath',
   deckGet: 'deck:get',
   deckNew: 'deck:new',
+  deckCloseReady: 'deck:closeReady',
+  deckCloseRequest: 'deck:closeRequest',
+  deckOpenFile: 'deck:openFile',
+  deckPersistenceError: 'deck:persistenceError',
   deckSave: 'deck:save',
   deckSyncSnapshot: 'deck:syncSnapshot',
   deckSaveAs: 'deck:saveAs',
@@ -188,8 +192,10 @@ export interface AuthoredHtmlFile {
   contents: string;
 }
 
-/** An open deck: its folder on disk plus the parsed document. */
+/** An open deck: its working folder, optional .dw path, and parsed document. */
 export interface DeckSession {
+  /** Durable .dw document path; dir remains the recoverable working folder. */
+  filePath?: string;
   /** Absolute path to the deck folder containing deck.json. */
   dir: string;
   deck: Deck;

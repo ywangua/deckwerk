@@ -90,7 +90,7 @@ const IMPORT_SOURCES = {
   keynote: { label: 'Keynote…', accept: '.key', route: '/api/import-keynote' },
   powerpoint: { label: 'PowerPoint…', accept: '.pptx', route: '/api/import-pptx' },
   deck: { label: 'DeckWerk deck folder…', accept: '', route: '/api/import-deck', folder: true },
-  deckArchive: { label: 'DeckWerk deck archive (.zip)…', accept: '.zip', route: '/api/import-deck' },
+  deckArchive: { label: 'DeckWerk presentation (.dw)…', accept: '.dw,.zip', route: '/api/import-deck' },
 } as const;
 
 export type ImportSource = keyof typeof IMPORT_SOURCES;
@@ -195,7 +195,7 @@ export function importToServer(
       const upload = pickFolder
         ? await zipPickedFolder(files, report)
         : { name: files[0].name, body: files[0] as Blob };
-      const name = upload.name.replace(/\.(key|pptx|zip)$/i, '');
+      const name = upload.name.replace(/\.(key|pptx|zip|dw)$/i, '');
       const id = await postImport(
         `${definition.route}?name=${encodeURIComponent(name)}${folderQuery(folder)}`,
         upload.body,

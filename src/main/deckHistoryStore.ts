@@ -1,3 +1,4 @@
+import { persistDocument } from './documentPersistence.js';
 import { randomUUID } from 'node:crypto';
 import { readFile, rename, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -81,6 +82,7 @@ async function drainHistoryWrites(dir: string, queue: HistoryWriteQueue): Promis
       const compressed = await gzipAsync(`${JSON.stringify(pending.history)}\n`);
       await writeFile(temporary, compressed);
       await rename(temporary, target);
+      await persistDocument(dir);
       pending.waiters.forEach(({ resolve }) => resolve());
     } catch (error) {
       pending.waiters.forEach(({ reject }) => reject(error));

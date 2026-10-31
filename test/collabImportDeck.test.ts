@@ -97,9 +97,10 @@ describe('collab server deck archive import', () => {
       await writeFile(join(dir, 'assets', 'photo.jpg'), Buffer.from([0xff, 0xd8, 0xff]));
 
       const download = await fetch(`${base}/api/download?deck=original`);
+      expect(download.headers.get('content-disposition')).toContain('original.dw');
       const archive = Buffer.from(await download.arrayBuffer());
 
-      expect(await upload('name=copy', archive)).toMatchObject({ status: 200, body: { id: 'copy' } });
+      expect(await upload('name=copy.dw', archive)).toMatchObject({ status: 200, body: { id: 'copy' } });
       expect([...await readFile(join(rootDir, 'copy', 'assets', 'photo.jpg'))]).toEqual([0xff, 0xd8, 0xff]);
       expect(await readFile(join(rootDir, 'copy', 'deck.json'), 'utf8'))
         .toBe(await readFile(join(rootDir, 'original', 'deck.json'), 'utf8'));
