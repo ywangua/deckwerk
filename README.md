@@ -1,8 +1,7 @@
-Note: this is a fork of DeckWerk (v0.2.3) by Vincent Sitzmann with various modifications. This is a personal version, not following the further development of the original DeckWerk.
+Note: this is a fork of DeckWerk (v0.2.3) by Vincent Sitzmann with various modifications. This is a personal version, which does NOT follow further development of the original DeckWerk.
 * Version 0.4.0: presentations save as a single `.dw` file (a ZIP archive containing the project and its media). Open `.dw` files with Open; existing projects remain available through File → Open project folder. Save As defaults to `.dw`, with a project-folder option for workflows that need it.
-* Added feature: code-role for syntax highlighting
-* Added feature: insert/remove/update slide numebrs
-* Added feature: F2 to add a text box around the cursor position
+* Version 0.3.0: add features: code-role for syntax highlighting; insert/remove/update slide numebrs; F2 to add a text box around the cursor position
+
 
 
 
